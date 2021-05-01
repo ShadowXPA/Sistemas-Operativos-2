@@ -4,13 +4,13 @@ int init_config(Config *cfg) {
 	memset(cfg, 0, sizeof(Config));
 
 	// Get MAX_... from registry
-	cfg->MAX_AIRPORT = 90;
-	cfg->MAX_AIRPLANE = 100;
-	cfg->MAX_PASSENGER = 1000;
+	cfg->max_airport = MAX_AIRPORT;
+	cfg->max_airplane = MAX_AIRPLANE;
+	cfg->max_passenger = MAX_PASSENGER;
 
-	cfg->airports = calloc(cfg->MAX_AIRPORT, sizeof(Airport));
-	cfg->airplanes = calloc(cfg->MAX_AIRPLANE, sizeof(Airplane));
-	cfg->passengers = calloc(cfg->MAX_PASSENGER, sizeof(Passenger));
+	cfg->airports = calloc(cfg->max_airport, sizeof(Airport));
+	cfg->airplanes = calloc(cfg->max_airplane, sizeof(Airplane));
+	cfg->passengers = calloc(cfg->max_passenger, sizeof(Passenger));
 
 	if (cfg->airports == NULL || cfg->airplanes == NULL || cfg->passengers == NULL) {
 		end_config(cfg);
@@ -18,13 +18,13 @@ int init_config(Config *cfg) {
 	}
 
 	int index = 1;
-	for (int i = 0; i < cfg->MAX_AIRPORT; i++) {
+	for (int i = 0; i < cfg->max_airport; i++) {
 		cfg->airports[i].id = (index++);
 	}
-	for (int i = 0; i < cfg->MAX_AIRPLANE; i++) {
+	for (int i = 0; i < cfg->max_airplane; i++) {
 		cfg->airplanes[i].id = (index++);
 	}
-	for (int i = 0; i < cfg->MAX_PASSENGER; i++) {
+	for (int i = 0; i < cfg->max_passenger; i++) {
 		cfg->passengers[i].id = (index++);
 	}
 
@@ -42,39 +42,39 @@ void init_control(Config *cfg) {
 	// init window (Win32)
 }
 
-void *get_by_id(Config *cfg, int id) {
-	if (id < 1 || id >(cfg->MAX_AIRPORT + cfg->MAX_AIRPLANE + cfg->MAX_PASSENGER))
+void *get_by_id(Config *cfg, unsigned int id) {
+	if (id < 1 || id >(cfg->max_airport + cfg->max_airplane + cfg->max_passenger))
 		return NULL;
 
-	if (id <= cfg->MAX_AIRPORT) {
+	if (id <= cfg->max_airport) {
 		// Airport
 		return &(cfg->airports[id - 1]);
-	} else if (id <= (cfg->MAX_AIRPORT + cfg->MAX_AIRPLANE)) {
+	} else if (id <= (cfg->max_airport + cfg->max_airplane)) {
 		// Airplane
-		return &(cfg->airplanes[id - (cfg->MAX_AIRPORT + 1)]);
+		return &(cfg->airplanes[id - (cfg->max_airport + 1)]);
 	} else {
 		// Passenger
-		return &(cfg->passengers[id - (cfg->MAX_AIRPORT + cfg->MAX_AIRPLANE + 1)]);
+		return &(cfg->passengers[id - (cfg->max_airport + cfg->max_airplane + 1)]);
 	}
 }
 
-Airport *get_airport_by_id(Config *cfg, int id) {
-	if (id > cfg->MAX_AIRPORT)
+Airport *get_airport_by_id(Config *cfg, unsigned int id) {
+	if (id > cfg->max_airport)
 		return NULL;
 
-	return get_by_id(cfg, id);
+	return ((Airport *) get_by_id(cfg, id));
 }
 
-Airplane *get_airplane_by_id(Config *cfg, int id) {
-	if (id < cfg->MAX_AIRPORT + 1 || id >(cfg->MAX_AIRPORT + cfg->MAX_AIRPLANE))
+Airplane *get_airplane_by_id(Config *cfg, unsigned int id) {
+	if (id < cfg->max_airport + 1 || id >(cfg->max_airport + cfg->max_airplane))
 		return NULL;
 
-	return get_by_id(cfg, id);
+	return ((Airplane *) get_by_id(cfg, id));
 }
 
-Passenger *get_passenger_by_id(Config *cfg, int id) {
-	if (id < (cfg->MAX_AIRPORT + cfg->MAX_AIRPLANE + 1))
+Passenger *get_passenger_by_id(Config *cfg, unsigned int id) {
+	if (id < (cfg->max_airport + cfg->max_airplane + 1))
 		return NULL;
 
-	return get_by_id(cfg, id);
+	return ((Passenger *) get_by_id(cfg, id));
 }
