@@ -162,6 +162,10 @@ DWORD WINAPI read_command(void *param) {
 				ReleaseMutex(cfg->mtx_airplane);
 				ReleaseMutex(cfg->mtx_airport);
 			}
+		} else if (icmp(buffer, "help") == 0) {
+			// show all commands
+		} else {
+			sout("Invalid command!\n");
 		}
 	} while (icmp(buffer, "exit") != 0);
 	SetEvent(cfg->stop_event);
