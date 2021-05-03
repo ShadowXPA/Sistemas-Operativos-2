@@ -177,6 +177,7 @@ DWORD WINAPI read_shared_memory(void *param) {
 	// Airplane has landed
 	// Airplane has crashed or pilot retired
 	// Airplane sends heartbeat
+	// Send destination coordinates
 
 	Config *cfg = (Config *) param;
 	HANDLE handles[2];

@@ -22,7 +22,7 @@ void clear_input_stream(const FILE *const p);
 
 #define MAX_MAP 1000
 #define MAX_NAME 50
-#define MAX_SHARED_BUFFER 100
+#define MAX_SHARED_BUFFER 20
 
 #define MAX_AIRPORT 90
 #define MAX_AIRPLANE 100
@@ -50,7 +50,7 @@ typedef struct airport {
 } Airport;
 
 typedef struct airplane {
-	unsigned int id;					// 91 ~ 190
+	unsigned int id;					// 91 ~ 190, MAYBE ADD PID?
 	unsigned int active : 1;
 	TCHAR name[MAX_NAME];
 	int velocity;
@@ -77,7 +77,7 @@ typedef union command {
 } Command;
 
 typedef struct sharedbuffer {
-	unsigned int id;
+	unsigned int id;					//TODO Maybe change to PID...
 	unsigned int cmd_id;
 	Command command;
 } SharedBuffer;
@@ -85,9 +85,10 @@ typedef struct sharedbuffer {
 typedef struct sharedmemory {
 	unsigned int map[MAX_MAP][MAX_MAP];	// IDs (0 = empty, 1 ~ 90 = airports, 91 ~ 190 = airplanes)
 	BOOL accepting_planes;
-	int in;
-	int out;
-	SharedBuffer buffer[MAX_SHARED_BUFFER];
+	int inC, outC;
+	SharedBuffer bufferControl[MAX_SHARED_BUFFER];
+	int inA, outA;
+	SharedBuffer bufferAirplane[MAX_SHARED_BUFFER];
 } SharedMemory;
 
 typedef struct cfg {
