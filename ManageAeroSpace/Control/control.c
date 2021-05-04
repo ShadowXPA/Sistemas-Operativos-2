@@ -133,20 +133,24 @@ DWORD WINAPI read_command(void *param) {
 			sin(DEFAULT_CIN_BUFFER, buffer, MAX_NAME);
 			airport.coordinates.y = (_tstoi(buffer) - 1);
 
+			WaitForSingleObject(cfg->mtx_airport, INFINITE);
 			if (add_airport(cfg, &airport)) {
 				sout("Airport added!\n");
 			} else {
 				sout("Airport not added!\n");
 			}
+			ReleaseMutex(cfg->mtx_airport);
 		} else if (icmp(buffer, "remove") == 0) {
 			sout("Input airport ID:\n > ");
 			sin(DEFAULT_CIN_BUFFER, buffer, MAX_NAME);
 
+			WaitForSingleObject(cfg->mtx_airport, INFINITE);
 			if (remove_airport(cfg, _tstoi(buffer))) {
 				sout("Airport removed!\n");
 			} else {
 				sout("Airport not removed!\n");
 			}
+			ReleaseMutex(cfg->mtx_airport);
 		} else if (icmp(buffer, "toggle") == 0) {
 			// toggle plane acceptance
 			WaitForSingleObject(cfg->mtx_memory, INFINITE);
@@ -185,6 +189,12 @@ DWORD WINAPI read_command(void *param) {
 			}
 		} else if (icmp(buffer, "help") == 0) {
 			// show all commands
+			sout("help   -> Shows this\n");
+			sout("add    -> Adds a new airport\n");
+			sout("remove -> Removes an airport\n");
+			sout("toggle -> Toggles between accepting airplanes or not\n");
+			sout("list   -> Prints a list of airports, airplanes, passengers or all\n");
+			sout("exit   -> Stops the whole system\n");
 		} else if (icmp(buffer, "exit") == 0) {
 			sout("Stopping system...\n");
 		} else {
@@ -323,7 +333,7 @@ Passenger *get_passenger_by_name(Config *cfg, const TCHAR *name) {
 
 BOOL add_airport(Config *cfg, Airport *airport) {
 	Airport *tmp = get_available_airport(cfg);
-	// check if maximum as been reached
+	// check if maximum has been reached
 	if (tmp == NULL)
 		return FALSE;
 	// check if name already exists
@@ -349,10 +359,27 @@ BOOL add_airport(Config *cfg, Airport *airport) {
 }
 
 BOOL add_airplane(Config *cfg, Airplane *airplane) {
+	Airplane *tmp = get_available_airplane(cfg);
+	// check if maximum has been reached
+	if (tmp == NULL)
+		return FALSE;
+	// check if name already exists
+	if (get_airplane_by_name(cfg, airplane->name) != NULL)
+		return FALSE;
+
+
 	return FALSE;
 }
 
 BOOL add_passenger(Config *cfg, Passenger *passenger) {
+	Passenger *tmp = get_available_passenger(cfg);
+	// check if maximum has been reached
+	if (tmp == NULL)
+		return FALSE;
+	// check if name already exists
+	if (get_passenger_by_name(cfg, passenger->name) != NULL)
+		return FALSE;
+
 	return FALSE;
 }
 
