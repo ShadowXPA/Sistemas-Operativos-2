@@ -86,7 +86,7 @@ void init_control(Config *cfg) {
 	cfg->obj_map = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, sizeof(SharedMemory), FILE_MAPPING_NAME);
 	if (cfg->obj_map == NULL)
 		return;
-	cfg->memory = MapViewOfFile(cfg->obj_map, FILE_MAP_ALL_ACCESS, 0, 0, 0);
+	cfg->memory = (SharedMemory *) MapViewOfFile(cfg->obj_map, FILE_MAP_ALL_ACCESS, 0, 0, 0);
 	if (cfg->memory == NULL)
 		return;
 	cfg->memory->accepting_planes = TRUE;
