@@ -1,35 +1,58 @@
 #include "aviao.h"
 
-BOOL init_config(Config* cfg) {
+BOOL init_config(Config *cfg) {
 	memset(cfg, 0, sizeof(Config));
 
-	cfg->mtx_memory = OpenMutex(NULL, FALSE, MTX_MEMORY);
+	cfg->mtx_memory = OpenMutex(MUTEX_ALL_ACCESS, FALSE, MTX_MEMORY);
 	if (cfg->mtx_memory == NULL)
 		return FALSE;
 
-	cfg->stop_event = OpenEvent(NULL, FALSE, STOP_SYSTEM_EVENT);
+	cfg->sem_emptyC = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, SEM_EMPTY_C);
+	cfg->sem_itemC = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, SEM_ITEM_C);
+	cfg->sem_emptyA = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, SEM_EMPTY_A);
+	cfg->sem_itemA = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, SEM_ITEM_A);
+	if (cfg->sem_emptyC == NULL || cfg->sem_emptyA == NULL || cfg->sem_itemC == NULL || cfg->sem_itemA == NULL)
+		return FALSE;
+
+	cfg->mtx_C = CreateMutex(NULL, FALSE, MTX_C);
+	cfg->mtx_A = CreateMutex(NULL, FALSE, MTX_A);
+	if (cfg->mtx_C == NULL || cfg->mtx_A == NULL)
+		return FALSE;
+
+	cfg->stop_event = OpenEvent(EVENT_ALL_ACCESS, FALSE, STOP_SYSTEM_EVENT);
 	if (cfg->stop_event == NULL)
+		return FALSE;
+
+	cfg->stop_airplane = CreateEvent(NULL, TRUE, FALSE, NULL);
+	if (cfg->stop_airplane == NULL)
 		return FALSE;
 
 	return TRUE;
 }
 
-void end_config(Config* cfg) {
+void end_config(Config *cfg) {
 	UnmapViewOfFile(cfg->memory);
 	CloseHandle(cfg->obj_map);
 	CloseHandle(cfg->mtx_memory);
+	CloseHandle(cfg->sem_emptyC);
+	CloseHandle(cfg->sem_emptyA);
+	CloseHandle(cfg->sem_itemC);
+	CloseHandle(cfg->sem_itemA);
+	CloseHandle(cfg->mtx_C);
+	CloseHandle(cfg->mtx_A);
 	CloseHandle(cfg->stop_event);
+	CloseHandle(cfg->stop_airplane);
 }
 
-void init_aviao(Config* cfg) {
+void init_aviao(Config *cfg) {
 	TCHAR buffer[MAX_NAME] = { 0 };
 	// init window (Win32)
 
 	// init shared memory
-	cfg->obj_map = OpenFileMapping(NULL, FALSE, FILE_MAPPING_NAME);
+	cfg->obj_map = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, FILE_MAPPING_NAME);
 	if (cfg->obj_map == NULL)
 		return;
-	cfg->memory = (SharedMemory*)MapViewOfFile(cfg->obj_map, FILE_MAP_ALL_ACCESS, 0, 0, 0);
+	cfg->memory = (SharedMemory *) MapViewOfFile(cfg->obj_map, FILE_MAP_ALL_ACCESS, 0, 0, 0);
 	if (cfg->memory == NULL)
 		return;
 
@@ -62,8 +85,8 @@ void init_aviao(Config* cfg) {
 	CloseHandle(thread[2]);
 }
 
-DWORD WINAPI read_command(void* param) {
-	Config* cfg = (Config*)param;
+DWORD WINAPI read_command(void *param) {
+	Config *cfg = (Config *) param;
 	TCHAR buffer[MAX_NAME] = { 0 };
 	do {
 		sout("Input command:\n > ");
@@ -82,41 +105,74 @@ DWORD WINAPI read_command(void* param) {
 			//send airport to control
 			//receive int
 			//add airport to destination
-		}
-		else if (icmp(buffer, "board") == 0) {
+		} else if (icmp(buffer, "board") == 0) {
 			//send confirmation to controler
 			//receive number of passengers
-		}
-		else if (icmp(buffer, "start") == 0) {
+		} else if (icmp(buffer, "start") == 0) {
 			//send confirmation to controler that I want to start the trip
 			//receive OK from controler
-		}
-		else if (icmp(buffer, "help") == 0) {
+		} else if (icmp(buffer, "help") == 0) {
 			// show all commands
-			sout("help   -> Shows this\n");
+			sout("help        -> Shows this\n");
 			sout("destination -> Define trip destination\n");
-			sout("board -> Board passengers in the airplane\n");
-			sout("start -> Start the trip\n");
-			sout("exit   -> Stops the whole system\n");
-		}
-		else if (icmp(buffer, "exit") == 0) {
-			sout("Stopping system...\n");
-		}
-		else {
+			sout("board       -> Board passengers in the airplane\n");
+			sout("start       -> Start the trip\n");
+			sout("exit        -> Stops the airplane\n");
+		} else if (icmp(buffer, "exit") == 0) {
+			sout("Stopping airplane...\n");
+		} else {
 			sout("Invalid command!\n");
 		}
 	} while (icmp(buffer, "exit") != 0);
 	//event to finish...
 	//SetEvent(cfg->stop_event);
+	SetEvent(cfg->stop_airplane);
 	return 0;
 }
 
-DWORD WINAPI read_shared_memory(void* param) {
+DWORD WINAPI read_shared_memory(void *param) {
+	Config *cfg = (Config *) param;
+	HANDLE handles[3];
+	SharedBuffer buffer;
+	handles[0] = cfg->stop_event;
+	handles[1] = cfg->stop_airplane;
+	handles[2] = cfg->sem_itemA;
+	DWORD res;
+	while (!((res = WaitForMultipleObjects(3, handles, FALSE, INFINITE)) == WAIT_OBJECT_0 || res == (WAIT_OBJECT_0 + 1))) {
+		WaitForSingleObject(cfg->mtx_A, INFINITE);
+		CopyMemory(&buffer, &(cfg->memory->bufferAirplane[cfg->memory->outA]), sizeof(SharedBuffer));
+		if (buffer.to_id == cfg->airplane.id) {
+			cfg->memory->outC = (cfg->memory->outA + 1) % MAX_SHARED_BUFFER;
+		}
+		ReleaseMutex(cfg->mtx_A);
+		ReleaseSemaphore(cfg->sem_emptyA, 1, NULL);
+		if (buffer.to_id == cfg->airplane.id) {
+			// Handle command
+			// ...
+		}
+	}
 
+	return 0;
 }
 
-DWORD WINAPI send_heartbeat(void* param)
-{
+DWORD WINAPI send_heartbeat(void *param) {
+	Config *cfg = (Config *) param;
+	HANDLE handles[3];
+	SharedBuffer buffer;
+	handles[0] = cfg->stop_event;
+	handles[1] = cfg->stop_airplane;
+	handles[2] = cfg->sem_emptyC;
+	DWORD res;
+	buffer.from_id = cfg->airplane.id;
+	buffer.cmd_id = CMD_HEARTBEAT;
+	while (!((res = WaitForMultipleObjects(3, handles, FALSE, INFINITE)) == WAIT_OBJECT_0 || res == (WAIT_OBJECT_0 + 1))) {
+		WaitForSingleObject(cfg->mtx_C, INFINITE);
+		CopyMemory(&(cfg->memory->bufferControl[cfg->memory->inC]), &buffer, sizeof(SharedBuffer));
+		cfg->memory->inC = (cfg->memory->inC + 1) % MAX_SHARED_BUFFER;
+		ReleaseMutex(cfg->mtx_C);
+		ReleaseSemaphore(cfg->sem_itemC, 1, NULL);
+		Sleep(3000);
+	}
 
 	return 0;
 }

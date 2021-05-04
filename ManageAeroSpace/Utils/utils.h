@@ -53,6 +53,9 @@ extern "C" {
 #define SEM_ITEM_A _T("SemaphoreItemA")
 #define STOP_SYSTEM_EVENT _T("StopEvent")
 
+	// Command IDs
+#define CMD_HEARTBEAT 322
+
 	DLL_API typedef struct point {
 		unsigned int x, y;
 	} Point;

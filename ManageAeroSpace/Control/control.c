@@ -257,6 +257,8 @@ DWORD WINAPI read_command(void *param) {
 			sout("Stopping system...\n");
 		} else if (icmp(buffer, "cfg") == 0) {
 			sout("Max. Airport: %u\nMax. Airplane: %u\nMax. Passenger: %u\n", cfg->max_airport, cfg->max_airplane, cfg->max_passenger);
+			sout("Memory: %p\n", cfg->memory);
+			sout("MTXMemory: %p\n", &cfg->mtx_memory);
 		} else {
 			sout("Invalid command!\n");
 		}
@@ -288,6 +290,16 @@ DWORD WINAPI read_shared_memory(void *param) {
 		// Airplane has crashed or pilot retired
 		// Airplane sends heartbeat
 		// Send destination coordinates
+		switch (buffer.cmd_id) {
+			case CMD_HEARTBEAT:
+			{
+				sout("[SharedMemory] Heartbeat from: %u\n", buffer.from_id);
+				break;
+			}
+			default:
+				sout("[SharedMemory] Invalid Command!\n");
+				break;
+		}
 	}
 	return 0;
 }

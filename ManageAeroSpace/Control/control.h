@@ -38,12 +38,11 @@ typedef struct cfg {
 	HANDLE stop_event;					// Kill event (Stops the whole system)
 	/*
 		// To send an item through circular a buffer use:
-
-		// Handle the buffer
+		// Handle the command
 		// ...
 		WaitForSingleObject(cfg->sem_emptyX, INFINITE);
 		WaitForSingleObject(cfg->mtx_X, INFINITE);
-		CopyMemory(&(cfg->memory->bufferX[cfg->memory->inX]), &buffer, sizeof(SharedBuffer));
+		CopyMemory(&(cfg->memory->bufferX[cfg->memory->inX]), &command, sizeof(SharedBuffer));
 		cfg->memory->inX = (cfg->memory->inX + 1) % MAX_SHARED_BUFFER;
 		ReleaseMutex(cfg->mtx_X);
 		ReleaseSemaphore(cfg->sem_itemX, 1, NULL);
@@ -51,11 +50,11 @@ typedef struct cfg {
 		// To receive an item through circular buffer use:
 		WaitForSingleObject(cfg->sem_itemX, INFINITE);
 		WaitForSingleObject(cfg->mtx_X, INFINITE);
-		CopyMemory(&buffer, &(cfg->memory->bufferX[cfg->memory->outX]), sizeof(SharedBuffer));
+		CopyMemory(&command, &(cfg->memory->bufferX[cfg->memory->outX]), sizeof(SharedBuffer));
 		cfg->memory->outX = (cfg->memory->outX + 1) % MAX_SHARED_BUFFER;
 		ReleaseMutex(cfg->mtx_X);
 		ReleaseSemaphore(cfg->sem_emptyX, 1, NULL);
-		// Handle the buffer
+		// Handle the command
 		// ...
 	*/
 	HANDLE sem_emptyC;					// Semaphore for empty spots in BufferC
