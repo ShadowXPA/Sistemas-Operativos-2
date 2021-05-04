@@ -114,7 +114,7 @@ typedef struct cfg {
 	HANDLE stop_event;					// Kill event (Stops the whole system)
 } Config;
 
-int init_config(Config *);
+BOOL init_config(Config *);
 void end_config(Config *);
 void init_control(Config *);
 

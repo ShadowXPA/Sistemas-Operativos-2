@@ -1,6 +1,6 @@
 #include "control.h"
 
-int init_config(Config *cfg) {
+BOOL init_config(Config *cfg) {
 	memset(cfg, 0, sizeof(Config));
 
 	//cfg->mtx_instance = OpenMutex(MUTEX_ALL_ACCESS, TRUE, MTX_CTR);
