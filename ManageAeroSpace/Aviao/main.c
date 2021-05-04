@@ -28,7 +28,6 @@ int _tmain(int argc, TCHAR** argv, TCHAR** envp) {
 	cfg->airplane.max_capacity = _ttoi(argv[1]);
 	cfg->airplane.velocity = _ttoi(argv[2]);
 	cfg->airplane.airport_start = _ttoi(argv[3]);
-	cfg->airplane.id = cfg->airplane.max_capacity;
 	init_aviao(cfg);
 
 	exit_aviao(cfg);
