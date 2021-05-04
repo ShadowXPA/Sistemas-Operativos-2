@@ -55,16 +55,3 @@ void clear_input_stream(const FILE *const p) {
 //
 //	return (res == ERROR_SUCCESS);
 //}
-//
-//BOOL createThread(HANDLE *h, LPTHREAD_START_ROUTINE routine, void *data, DWORD flags, DWORD *threadId) {
-//	h = CreateThread(
-//		NULL,						//LPSECURITY_ATTRIBUTES   lpThreadAttributes,
-//		0,							//SIZE_T                  dwStackSize,
-//		routine,					//LPTHREAD_START_ROUTINE  lpStartAddress,
-//		data,						//__drv_aliasesMem LPVOID lpParameter,
-//		flags,						//DWORD                   dwCreationFlags,
-//		threadId					//LPDWORD                 lpThreadId
-//	);
-//
-//	return (h != NULL);
-//}

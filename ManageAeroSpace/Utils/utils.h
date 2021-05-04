@@ -47,6 +47,10 @@ extern "C" {
 
 #define MTX_MEMORY _T("MTXSharedMemory")
 #define FILE_MAPPING_NAME _T("ControlAviao")
+#define SEM_EMPTY_C _T("SemaphoreEmptyC")
+#define SEM_EMPTY_A _T("SemaphoreEmptyA")
+#define SEM_ITEM_C _T("SemaphoreItemC")
+#define SEM_ITEM_A _T("SemaphoreItemA")
 #define STOP_SYSTEM_EVENT _T("StopEvent")
 
 	DLL_API typedef struct point {
@@ -88,7 +92,8 @@ extern "C" {
 	} Command;
 
 	DLL_API typedef struct sharedbuffer {
-		unsigned int id;					//TODO Maybe change to PID...
+		unsigned int from_id;				//TODO Maybe change to PID...
+		unsigned int to_id;
 		unsigned int cmd_id;
 		Command command;
 	} SharedBuffer;

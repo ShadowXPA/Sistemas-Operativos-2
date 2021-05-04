@@ -1,96 +1,20 @@
 #ifndef CONTROL_H
 #define CONTROL_H
 
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <Windows.h>
-#include <tchar.h>
 #include "../Utils/utils.h"
 
-//void clear_input_stream(const FILE *const p);
-//
-//#define _sout(p, x, ...) _ftprintf_s(p, _T(x), __VA_ARGS__)
-//#define sout(x, ...) _sout(stdout, x, __VA_ARGS__)
-//#define _sin(p, x, ...) {\
-//							_ftscanf_s(p, _T(x), __VA_ARGS__);\
-//							clear_input_stream(p);\
-//						}
-//#define sin(x, ...) _sin(stdin, x, __VA_ARGS__)
-//#define cmp(str1, str2) _tcscmp(str1, _T(str2))
-//#define icmp(str1, str2) _tcsicmp(str1, _T(str2))
-//#define contains(str, search) _tcsstr(str, _T(search))
-
-//#define MAX_MAP 1000
-//#define MAX_NAME 50
-//#define MAX_SHARED_BUFFER 20
-//
-//#define MAX_AIRPORT 90
-//#define MAX_AIRPLANE 100
-//#define MAX_PASSENGER (100 * MAX_AIRPLANE)
-//
-//#define DEFAULT_CIN_BUFFER "%49[^\n]"
-//
 #define MTX_CTR _T("MTXControl")
-//#define MTX_MEMORY _T("MTXSharedMemory")
 #define MTX_AIRPORT _T("MTXAirport")
 #define MTX_AIRPLANE _T("MTXAirplane")
 #define MTX_PASSENGER _T("MTXPassenger")
-//#define FILE_MAPPING_NAME _T("ControlAviao")
-//#define STOP_SYSTEM_EVENT _T("StopEvent")
 
-//typedef struct point {
-//	unsigned int x, y;
-//} Point;
-//
-//typedef struct airport {
-//	unsigned int id;					// 1 ~ 90
-//	unsigned int active : 1;
-//	TCHAR name[MAX_NAME];
-//	Point coordinates;					// 0 ~ 1000
-//} Airport;
-//
-//typedef struct airplane {
-//	unsigned int id;					// 91 ~ 190, MAYBE ADD PID?
-//	unsigned int active : 1;
-//	TCHAR name[MAX_NAME];
-//	int velocity;
-//	int capacity;						// Current capacity
-//	int max_capacity;					// Maximum capacity
-//	Point coordinates;					// 0 ~ 1000
-//	unsigned int airport_start;
-//	unsigned int airport_end;
-//} Airplane;
-//
-//typedef struct passenger {
-//	unsigned int id;					// 191 ~ 1190
-//	unsigned int active : 1;
-//	TCHAR name[MAX_NAME];
-//	int wait_time;
-//	unsigned int airport;
-//	unsigned int airport_end;
-//	unsigned int airplane;				// 0 not in airplane, 91 ~ 190 in an airplane
-//} Passenger;
+#define REGISTRY_NAME _T("Software\\SO2\\TP")
+#define REGISTRY_AIRPORT_KEY _T("MAX_AIRPORT")
+#define REGISTRY_AIRPLANE_KEY _T("MAX_AIRPLANE")
+#define REGISTRY_PASSENGER_KEY _T("MAX_PASSENGER")
 
-//typedef union command {
-//	Point coordinates;
-//	TCHAR str[MAX_NAME];
-//} Command;
-//
-//typedef struct sharedbuffer {
-//	unsigned int id;					//TODO Maybe change to PID...
-//	unsigned int cmd_id;
-//	Command command;
-//} SharedBuffer;
-//
-//typedef struct sharedmemory {
-//	unsigned int map[MAX_MAP][MAX_MAP];	// IDs (0 = empty, 1 ~ 90 = airports, 91 ~ 190 = airplanes)
-//	BOOL accepting_planes;
-//	int inC, outC;
-//	SharedBuffer bufferControl[MAX_SHARED_BUFFER];
-//	int inA, outA;
-//	SharedBuffer bufferAirplane[MAX_SHARED_BUFFER];
-//} SharedMemory;
+#define MTX_C _T("ControlMutexC")
+#define MTX_A _T("ControlMutexA")
 
 typedef struct cfg {
 	unsigned int max_airport;			// Maximum number of airports
@@ -112,6 +36,34 @@ typedef struct cfg {
 	HANDLE mtx_airplane;				// Mutex for airplane access
 	HANDLE mtx_passenger;				// Mutex for passenger access
 	HANDLE stop_event;					// Kill event (Stops the whole system)
+	/*
+		// To send an item through circular a buffer use:
+
+		// Handle the buffer
+		// ...
+		WaitForSingleObject(cfg->sem_emptyX, INFINITE);
+		WaitForSingleObject(cfg->mtx_X, INFINITE);
+		CopyMemory(&(cfg->memory->bufferX[cfg->memory->inX]), &buffer, sizeof(SharedBuffer));
+		cfg->memory->inX = (cfg->memory->inX + 1) % MAX_SHARED_BUFFER;
+		ReleaseMutex(cfg->mtx_X);
+		ReleaseSemaphore(cfg->sem_itemX, 1, NULL);
+		// ----------------------
+		// To receive an item through circular buffer use:
+		WaitForSingleObject(cfg->sem_itemX, INFINITE);
+		WaitForSingleObject(cfg->mtx_X, INFINITE);
+		CopyMemory(&buffer, &(cfg->memory->bufferX[cfg->memory->outX]), sizeof(SharedBuffer));
+		cfg->memory->outX = (cfg->memory->outX + 1) % MAX_SHARED_BUFFER;
+		ReleaseMutex(cfg->mtx_X);
+		ReleaseSemaphore(cfg->sem_emptyX, 1, NULL);
+		// Handle the buffer
+		// ...
+	*/
+	HANDLE sem_emptyC;					// Semaphore for empty spots in BufferC
+	HANDLE sem_itemC;					// Semaphore for items in BufferC
+	HANDLE mtx_C;						// Mutex for BufferC
+	HANDLE sem_emptyA;					// Semaphore for empty spots in BufferA
+	HANDLE sem_itemA;					// Semaphore for items in BufferA
+	HANDLE mtx_A;						// Mutex for BufferA
 } Config;
 
 BOOL init_config(Config *);

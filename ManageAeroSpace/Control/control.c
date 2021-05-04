@@ -36,6 +36,45 @@ BOOL init_config(Config *cfg) {
 	cfg->max_passenger = MAX_PASSENGER;
 	// Get MAX_... from registry
 	// If not set, set default values
+	HKEY key;
+	DWORD result;
+	LSTATUS res = RegCreateKeyEx(HKEY_CURRENT_USER, REGISTRY_NAME, 0, NULL, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, NULL, &key, &result);
+	if (res != ERROR_SUCCESS)
+		return FALSE;
+	if (result == REG_CREATED_NEW_KEY) {
+		// Created registry key
+		// Add default values
+		res = RegSetValueEx(key, REGISTRY_AIRPORT_KEY, 0, REG_DWORD, (const BYTE *) &cfg->max_airport, sizeof(DWORD));
+		if (res != ERROR_SUCCESS) {
+			return FALSE;
+		}
+		res = RegSetValueEx(key, REGISTRY_AIRPLANE_KEY, 0, REG_DWORD, (const BYTE *) &cfg->max_airplane, sizeof(DWORD));
+		if (res != ERROR_SUCCESS) {
+			return FALSE;
+		}
+		res = RegSetValueEx(key, REGISTRY_PASSENGER_KEY, 0, REG_DWORD, (const BYTE *) &cfg->max_passenger, sizeof(DWORD));
+		if (res != ERROR_SUCCESS) {
+			return FALSE;
+		}
+	} else {
+		// Opened registry key
+		// Get default values
+		DWORD max;
+		DWORD size = sizeof(DWORD);
+		DWORD type = REG_DWORD;
+		res = RegQueryValueEx(key, REGISTRY_AIRPORT_KEY, 0, &type, (LPBYTE) &max, &size);
+		if (res == ERROR_SUCCESS) {
+			cfg->max_airport = max;
+		}
+		res = RegQueryValueEx(key, REGISTRY_AIRPLANE_KEY, 0, &type, (LPBYTE) &max, &size);
+		if (res == ERROR_SUCCESS) {
+			cfg->max_airplane = max;
+		}
+		res = RegQueryValueEx(key, REGISTRY_PASSENGER_KEY, 0, &type, (LPBYTE) &max, &size);
+		if (res == ERROR_SUCCESS) {
+			cfg->max_passenger = max;
+		}
+	}
 
 	cfg->airports = calloc(cfg->max_airport, sizeof(Airport));
 	cfg->airplanes = calloc(cfg->max_airplane, sizeof(Airplane));
@@ -56,6 +95,18 @@ BOOL init_config(Config *cfg) {
 		cfg->passengers[i].id = (index++);
 	}
 
+	cfg->sem_emptyC = CreateSemaphore(NULL, MAX_SHARED_BUFFER, MAX_SHARED_BUFFER, SEM_EMPTY_C);
+	cfg->sem_emptyA = CreateSemaphore(NULL, MAX_SHARED_BUFFER, MAX_SHARED_BUFFER, SEM_EMPTY_A);
+	cfg->sem_itemC = CreateSemaphore(NULL, 0, MAX_SHARED_BUFFER, SEM_ITEM_C);
+	cfg->sem_itemA = CreateSemaphore(NULL, 0, MAX_SHARED_BUFFER, SEM_ITEM_A);
+	if (cfg->sem_emptyC == NULL || cfg->sem_emptyA == NULL || cfg->sem_itemC == NULL || cfg->sem_itemA == NULL)
+		return FALSE;
+
+	cfg->mtx_C = CreateMutex(NULL, FALSE, MTX_C);
+	cfg->mtx_A = CreateMutex(NULL, FALSE, MTX_A);
+	if (cfg->mtx_C == NULL || cfg->mtx_A == NULL)
+		return FALSE;
+
 	cfg->stop_event = CreateEvent(NULL, TRUE, FALSE, STOP_SYSTEM_EVENT);
 	if (cfg->stop_event == NULL)
 		return FALSE;
@@ -75,6 +126,12 @@ void end_config(Config *cfg) {
 	CloseHandle(cfg->mtx_airport);
 	CloseHandle(cfg->mtx_airplane);
 	CloseHandle(cfg->mtx_passenger);
+	CloseHandle(cfg->sem_emptyC);
+	CloseHandle(cfg->sem_emptyA);
+	CloseHandle(cfg->sem_itemC);
+	CloseHandle(cfg->sem_itemA);
+	CloseHandle(cfg->mtx_C);
+	CloseHandle(cfg->mtx_A);
 	CloseHandle(cfg->stop_event);
 	memset(cfg, 0, sizeof(Config));
 }
@@ -194,9 +251,12 @@ DWORD WINAPI read_command(void *param) {
 			sout("remove -> Removes an airport\n");
 			sout("toggle -> Toggles between accepting airplanes or not\n");
 			sout("list   -> Prints a list of airports, airplanes, passengers or all\n");
+			sout("cfg    -> View config\n");
 			sout("exit   -> Stops the whole system\n");
 		} else if (icmp(buffer, "exit") == 0) {
 			sout("Stopping system...\n");
+		} else if (icmp(buffer, "cfg") == 0) {
+			sout("Max. Airport: %u\nMax. Airplane: %u\nMax. Passenger: %u\n", cfg->max_airport, cfg->max_airplane, cfg->max_passenger);
 		} else {
 			sout("Invalid command!\n");
 		}
@@ -206,20 +266,29 @@ DWORD WINAPI read_command(void *param) {
 }
 
 DWORD WINAPI read_shared_memory(void *param) {
-	// Receive new airplane
-	// Airplane is accepting passengers
-	// Airplane is starting lift off
-	// Airplane is moving (Coordinates)
-	// Airplane is de-touring or waiting (Avoid collision)
-	// Airplane has landed
-	// Airplane has crashed or pilot retired
-	// Airplane sends heartbeat
-	// Send destination coordinates
-
 	Config *cfg = (Config *) param;
 	HANDLE handles[2];
+	SharedBuffer buffer;
 	handles[0] = cfg->stop_event;
-	WaitForSingleObject(handles[0], INFINITE);
+	handles[1] = cfg->sem_itemC;
+	while (WaitForMultipleObjects(2, handles, FALSE, INFINITE) != WAIT_OBJECT_0) {
+		WaitForSingleObject(cfg->mtx_C, INFINITE);
+		CopyMemory(&buffer, &(cfg->memory->bufferControl[cfg->memory->outC]), sizeof(SharedBuffer));
+		cfg->memory->outC = (cfg->memory->outC + 1) % MAX_SHARED_BUFFER;
+		ReleaseMutex(cfg->mtx_C);
+		ReleaseSemaphore(cfg->sem_emptyC, 1, NULL);
+		// Handle buffer
+		// ...
+		// Receive new airplane
+		// Airplane is accepting passengers
+		// Airplane is starting lift off
+		// Airplane is moving (Coordinates)
+		// Airplane is de-touring or waiting (Avoid collision)
+		// Airplane has landed
+		// Airplane has crashed or pilot retired
+		// Airplane sends heartbeat
+		// Send destination coordinates
+	}
 	return 0;
 }
 
