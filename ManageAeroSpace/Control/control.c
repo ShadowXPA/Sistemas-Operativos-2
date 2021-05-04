@@ -122,11 +122,31 @@ DWORD WINAPI read_command(void *param) {
 
 		if (icmp(buffer, "add") == 0) {
 			// add airport
+			Airport airport;
 			sout("Input airport name:\n > ");
 			sin(DEFAULT_CIN_BUFFER, buffer, MAX_NAME);
+			_cpy(airport.name, buffer, MAX_NAME);
+			sout("Input x coordinate:\n > ");
+			sin(DEFAULT_CIN_BUFFER, buffer, MAX_NAME);
+			airport.coordinates.x = (_tstoi(buffer) - 1);
+			sout("Input y coordinate:\n > ");
+			sin(DEFAULT_CIN_BUFFER, buffer, MAX_NAME);
+			airport.coordinates.y = (_tstoi(buffer) - 1);
 
-			// check if maximum as been reached
-			// check if already exists
+			if (add_airport(cfg, &airport)) {
+				sout("Airport added!\n");
+			} else {
+				sout("Airport not added!\n");
+			}
+		} else if (icmp(buffer, "remove") == 0) {
+			sout("Input airport ID:\n > ");
+			sin(DEFAULT_CIN_BUFFER, buffer, MAX_NAME);
+
+			if (remove_airport(cfg, _tstoi(buffer))) {
+				sout("Airport removed!\n");
+			} else {
+				sout("Airport not removed!\n");
+			}
 		} else if (icmp(buffer, "toggle") == 0) {
 			// toggle plane acceptance
 			WaitForSingleObject(cfg->mtx_memory, INFINITE);
@@ -136,6 +156,7 @@ DWORD WINAPI read_command(void *param) {
 		} else if (icmp(buffer, "list") == 0) {
 			sout("What do you want to list:\n > ");
 			sin(DEFAULT_CIN_BUFFER, buffer, MAX_NAME);
+			sout("\n");
 			if (icmp(buffer, "airport") == 0) {
 				// list airports
 				WaitForSingleObject(cfg->mtx_airport, INFINITE);
@@ -164,6 +185,8 @@ DWORD WINAPI read_command(void *param) {
 			}
 		} else if (icmp(buffer, "help") == 0) {
 			// show all commands
+		} else if (icmp(buffer, "exit") == 0) {
+			sout("Stopping system...\n");
 		} else {
 			sout("Invalid command!\n");
 		}
@@ -233,10 +256,132 @@ Passenger *get_passenger_by_id(Config *cfg, unsigned int id) {
 	return ((Passenger *) get_by_id(cfg, id));
 }
 
+Airport *get_available_airport(Config *cfg) {
+	for (unsigned int i = 1; i <= cfg->max_airport; i++) {
+		Airport *airport = get_airport_by_id(cfg, i);
+		if (airport != NULL && !airport->active) {
+			return airport;
+		}
+	}
+	return NULL;
+}
+
+Airplane *get_available_airplane(Config *cfg) {
+	for (unsigned int i = (cfg->max_airport + 1); i <= (cfg->max_airport + cfg->max_airplane); i++) {
+		Airplane *airplane = get_airplane_by_id(cfg, i);
+		if (airplane != NULL && !airplane->active) {
+			return airplane;
+		}
+	}
+
+	return NULL;
+}
+
+Passenger *get_available_passenger(Config *cfg) {
+	for (unsigned int i = (cfg->max_airport + cfg->max_airplane + 1); i <= (cfg->max_airport + cfg->max_airplane + cfg->max_passenger); i++) {
+		Passenger *passenger = get_passenger_by_id(cfg, i);
+		if (passenger != NULL && !passenger->active) {
+			return passenger;
+		}
+	}
+
+	return NULL;
+}
+
+Airport *get_airport_by_name(Config *cfg, const TCHAR *name) {
+	for (unsigned int i = 1; i <= cfg->max_airport; i++) {
+		Airport *airport = get_airport_by_id(cfg, i);
+		if (airport != NULL && _icmp(airport->name, name) == 0) {
+			return airport;
+		}
+	}
+
+	return NULL;
+}
+
+Airplane *get_airplane_by_name(Config *cfg, const TCHAR *name) {
+	for (unsigned int i = (cfg->max_airport + 1); i <= (cfg->max_airport + cfg->max_airplane); i++) {
+		Airplane *airplane = get_airplane_by_id(cfg, i);
+		if (airplane != NULL && _icmp(airplane->name, name) == 0) {
+			return airplane;
+		}
+	}
+
+	return NULL;
+}
+
+Passenger *get_passenger_by_name(Config *cfg, const TCHAR *name) {
+	for (unsigned int i = (cfg->max_airport + cfg->max_airplane + 1); i <= (cfg->max_airport + cfg->max_airplane + cfg->max_passenger); i++) {
+		Passenger *passenger = get_passenger_by_id(cfg, i);
+		if (passenger != NULL && _icmp(passenger->name, name) == 0) {
+			return passenger;
+		}
+	}
+
+	return NULL;
+}
+
+BOOL add_airport(Config *cfg, Airport *airport) {
+	Airport *tmp = get_available_airport(cfg);
+	// check if maximum as been reached
+	if (tmp == NULL)
+		return FALSE;
+	// check if name already exists
+	if (get_airport_by_name(cfg, airport->name) != NULL)
+		return FALSE;
+	// check if coordinates are valid
+	if (airport->coordinates.x >= MAX_MAP || airport->coordinates.y >= MAX_MAP)
+		return FALSE;
+	WaitForSingleObject(cfg->mtx_memory, INFINITE);
+	unsigned int map_id = cfg->memory->map[airport->coordinates.x][airport->coordinates.y];
+	if (map_id != 0) {
+		ReleaseMutex(cfg->mtx_memory);
+		return FALSE;
+	}
+	cfg->memory->map[airport->coordinates.x][airport->coordinates.y] = tmp->id;
+	ReleaseMutex(cfg->mtx_memory);
+
+	tmp->active = 1;
+	tmp->coordinates = airport->coordinates;
+	_cpy(tmp->name, airport->name, MAX_NAME);
+
+	return TRUE;
+}
+
+BOOL add_airplane(Config *cfg, Airplane *airplane) {
+	return FALSE;
+}
+
+BOOL add_passenger(Config *cfg, Passenger *passenger) {
+	return FALSE;
+}
+
+BOOL remove_airport(Config *cfg, unsigned int id) {
+	Airport *airport = get_airport_by_id(cfg, id);
+	if (airport != NULL && airport->active) {
+		WaitForSingleObject(cfg->mtx_memory, INFINITE);
+		cfg->memory->map[airport->coordinates.x][airport->coordinates.y] = 0;
+		ReleaseMutex(cfg->mtx_memory);
+		memset(airport, 0, sizeof(Airport));
+		airport->id = id;
+		return TRUE;
+	}
+
+	return FALSE;
+}
+
+BOOL remove_airplane(Config *cfg, unsigned int id) {
+	return FALSE;
+}
+
+BOOL remove_passenger(Config *cfg, unsigned int id) {
+	return FALSE;
+}
+
 void print_airports(Config *cfg) {
 	for (unsigned int i = 1; i <= cfg->max_airport; i++) {
 		Airport *airport = get_airport_by_id(cfg, i);
-		if (airport->active) {
+		if (airport != NULL && airport->active) {
 			sout("Name: '%s' (%u)\nCoordinates: (%u, %u)\n\n", airport->name, airport->id, airport->coordinates.x, airport->coordinates.y);
 		}
 	}
@@ -245,12 +390,13 @@ void print_airports(Config *cfg) {
 void print_airplane(Config *cfg) {
 	for (unsigned int i = (cfg->max_airport + 1); i <= (cfg->max_airport + cfg->max_airplane); i++) {
 		Airplane *airplane = get_airplane_by_id(cfg, i);
-		if (airplane->active) {
+		if (airplane != NULL && airplane->active) {
 			Airport *departure = get_airport_by_id(cfg, airplane->airport_start);
 			Airport *destination = get_airport_by_id(cfg, airplane->airport_end);
-			sout("Name: '%s' (%u)\nVelocity: %d\nCapacity: %d\nMax. Capacity: %d\nCoordinates: (%u, %u)\nDeparture: '%s' (%u)\nDestination: '%s' (%u)\n\n",
-				airplane->name, airplane->id, airplane->velocity, airplane->capacity, airplane->max_capacity, airplane->coordinates.x, airplane->coordinates.y,
-				departure->name, departure->id, destination->name, destination->id);
+			if (departure != NULL && destination != NULL)
+				sout("Name: '%s' (%u)\nVelocity: %d\nCapacity: %d\nMax. Capacity: %d\nCoordinates: (%u, %u)\nDeparture: '%s' (%u)\nDestination: '%s' (%u)\n\n",
+					airplane->name, airplane->id, airplane->velocity, airplane->capacity, airplane->max_capacity, airplane->coordinates.x, airplane->coordinates.y,
+					departure->name, departure->id, destination->name, destination->id);
 		}
 	}
 }
@@ -258,23 +404,27 @@ void print_airplane(Config *cfg) {
 void print_passenger(Config *cfg) {
 	for (unsigned int i = (cfg->max_airport + cfg->max_airplane + 1); i <= (cfg->max_airport + cfg->max_airplane + cfg->max_passenger); i++) {
 		Passenger *passenger = get_passenger_by_id(cfg, i);
-		if (passenger->active) {
+		if (passenger != NULL && passenger->active) {
 			Airport *destination = get_airport_by_id(cfg, passenger->airport_end);
-			sout("Name: '%s' (%u)\nDestination: '%s' (%u)\n", passenger->name, passenger->id, destination->name, destination->id);
-			if (passenger->airplane) {
-				Airplane *airplane = get_airplane_by_id(cfg, passenger->airplane);
-				sout("Flying on: '%s' (%u)\nCoordinates: (%u, %u)\n", airplane->name, airplane->id, airplane->coordinates.x, airplane->coordinates.y);
-			} else {
-				Airport *current_airport = get_airport_by_id(cfg, passenger->airport);
-				sout("Waiting for airplane at: '%s' (%u)\nCoordinates: (%u, %u)\nWaiting time left: %d\n", current_airport->name, current_airport->id,
-					current_airport->coordinates.x, current_airport->coordinates.y, passenger->wait_time);
+			if (destination != NULL) {
+				sout("Name: '%s' (%u)\nDestination: '%s' (%u)\n", passenger->name, passenger->id, destination->name, destination->id);
+				if (passenger->airplane) {
+					Airplane *airplane = get_airplane_by_id(cfg, passenger->airplane);
+					if (airplane != NULL)
+						sout("Flying on: '%s' (%u)\nCoordinates: (%u, %u)\n", airplane->name, airplane->id, airplane->coordinates.x, airplane->coordinates.y);
+				} else {
+					Airport *current_airport = get_airport_by_id(cfg, passenger->airport);
+					if (current_airport != NULL)
+						sout("Waiting for airplane at: '%s' (%u)\nCoordinates: (%u, %u)\nWaiting time left: %d\n", current_airport->name, current_airport->id,
+							current_airport->coordinates.x, current_airport->coordinates.y, passenger->wait_time);
+				}
+				sout("\n");
 			}
-			sout("\n");
 		}
 	}
 }
 
-void clear_input_stream(const FILE *const p) {
-	int ch;
-	while ((ch = _gettc(p)) != '\n' && ch != EOF);
-}
+//void clear_input_stream(const FILE *const p) {
+//	int ch;
+//	while ((ch = _gettc(p)) != '\n' && ch != EOF);
+//}
