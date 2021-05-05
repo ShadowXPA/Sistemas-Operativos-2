@@ -87,8 +87,8 @@ extern "C" {
 		int capacity;						// Current capacity
 		int max_capacity;					// Maximum capacity
 		Point coordinates;					// 0 ~ 1000
-		unsigned int airport_start;
-		unsigned int airport_end;
+		Airport airport_start;
+		Airport airport_end;
 	} Airplane;
 
 	DLL_API typedef struct passenger {
@@ -96,9 +96,9 @@ extern "C" {
 		unsigned int active : 1;
 		TCHAR name[MAX_NAME];
 		int wait_time;
-		unsigned int airport;
-		unsigned int airport_end;
-		unsigned int airplane;				// 0 not in airplane, 91 ~ 190 in an airplane
+		Airport airport;
+		Airport airport_end;
+		Airplane airplane;					// PID 0 not in airplane, != 0 in an airplane
 	} Passenger;
 
 	DLL_API typedef union command {
@@ -106,10 +106,11 @@ extern "C" {
 		TCHAR str[MAX_NAME];
 		Airplane airplane;
 		Airport airport;
+		int number;
 	} Command;
 
 	DLL_API typedef struct sharedbuffer {
-		unsigned int from_id;				//TODO Maybe change to PID...
+		unsigned int from_id;
 		unsigned int to_id;
 		unsigned int cmd_id;
 		Command command;

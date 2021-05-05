@@ -492,9 +492,23 @@ BOOL add_airplane(Config *cfg, Airplane *airplane) {
 	if (tmp == NULL)
 		return FALSE;
 	// check if name already exists
-	if (get_airplane_by_name(cfg, airplane->name) != NULL)
+	if (_tcsnlen(airplane->name, MAX_NAME) == 0 || get_airplane_by_name(cfg, airplane->name) != NULL)
 		return FALSE;
 
+	Airport *airport = get_airport_by_id(cfg, airplane->airport_start);
+	// index out of bounds?
+	if (airport == NULL)
+		return FALSE;
+	// airport exists?
+	if (!airport->active)
+		return FALSE;
+
+	tmp->active = 1;
+	tmp->pid = airplane->pid;
+	_cpy(tmp->name, airplane->name, MAX_NAME);
+	tmp->max_capacity = airplane->max_capacity;
+	tmp->airport_start = 
+	
 
 	return FALSE;
 }
