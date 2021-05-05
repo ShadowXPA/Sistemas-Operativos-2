@@ -46,6 +46,7 @@ void end_config(Config *cfg) {
 
 void init_aviao(Config *cfg) {
 	TCHAR buffer[MAX_NAME] = { 0 };
+	SharedBuffer sb;
 	// init window (Win32)
 
 	// init shared memory
@@ -62,9 +63,23 @@ void init_aviao(Config *cfg) {
 	_cpy(cfg->airplane.name, buffer, MAX_NAME);
 
 	//send hello!, name, capacity, velocity and initial airport
-
+	sb.cmd_id = CMD_HELLO;
+	sb.from_id = cfg->airplane.pid;
+	sb.command.airplane = cfg->airplane;
+	send_command(cfg, &sb);
 	//receive coordinates
-
+	receive_command(cfg, &sb);
+	if (sb.cmd_id == CMD_OK) {
+		cfg->airplane = sb.command.airplane;
+		sout("Airplane registered!\n");
+		sout("Name: '%s' (%u, %u)\nVelocity: %d\nCapacity: %d\nMax. Capacity: %d\nCoordinates: (%u, %u)\nDeparture: (%u)\nDestination: (%u)\n\n",
+			cfg->airplane.name, cfg->airplane.id, cfg->airplane.pid, cfg->airplane.velocity, cfg->airplane.capacity, cfg->airplane.max_capacity, 
+			cfg->airplane.coordinates.x, cfg->airplane.coordinates.y, cfg->airplane.airport_start, cfg->airplane.airport_end);
+	}
+	else {
+		sout("Airplane not registered!\nError: '%s'\n", sb.command.str);
+		return;
+	}
 	// init threads:
 	HANDLE thread[3];
 	// read command
@@ -88,6 +103,7 @@ void init_aviao(Config *cfg) {
 DWORD WINAPI read_command(void *param) {
 	Config *cfg = (Config *) param;
 	TCHAR buffer[MAX_NAME] = { 0 };
+	SharedBuffer sb;
 	do {
 		sout("Input command:\n > ");
 		sin(DEFAULT_CIN_BUFFER, buffer, MAX_NAME);
@@ -103,7 +119,17 @@ DWORD WINAPI read_command(void *param) {
 			sin(DEFAULT_CIN_BUFFER, buffer, MAX_NAME);
 			_cpy(airport.name, buffer, MAX_NAME);
 			//send airport to control
+			sb.from_id = cfg->airplane.pid;
+			sb.cmd_id = CMD_SEND_DESTINATION;
+			sb.command.airport = airport;
+			send_command(cfg, &sb); 
 			//receive int
+			receive_command(cfg, &sb);
+
+
+			
+			cfg->airplane.airport_end = airport.id;
+			
 			//add airport to destination
 		} else if (icmp(buffer, "board") == 0) {
 			//send confirmation to controler
