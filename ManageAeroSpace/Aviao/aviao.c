@@ -73,10 +73,9 @@ void init_aviao(Config *cfg) {
 		cfg->airplane = sb.command.airplane;
 		sout("Airplane registered!\n");
 		sout("Name: '%s' (%u, %u)\nVelocity: %d\nCapacity: %d\nMax. Capacity: %d\nCoordinates: (%u, %u)\nDeparture: (%u)\nDestination: (%u)\n\n",
-			cfg->airplane.name, cfg->airplane.id, cfg->airplane.pid, cfg->airplane.velocity, cfg->airplane.capacity, cfg->airplane.max_capacity, 
+			cfg->airplane.name, cfg->airplane.id, cfg->airplane.pid, cfg->airplane.velocity, cfg->airplane.capacity, cfg->airplane.max_capacity,
 			cfg->airplane.coordinates.x, cfg->airplane.coordinates.y, cfg->airplane.airport_start, cfg->airplane.airport_end);
-	}
-	else {
+	} else {
 		sout("Airplane not registered!\nError: '%s'\n", sb.command.str);
 		return;
 	}
@@ -122,14 +121,14 @@ DWORD WINAPI read_command(void *param) {
 			sb.from_id = cfg->airplane.pid;
 			sb.cmd_id = CMD_SEND_DESTINATION;
 			sb.command.airport = airport;
-			send_command(cfg, &sb); 
+			send_command(cfg, &sb);
 			//receive int
 			receive_command(cfg, &sb);
 
 
-			
+
 			cfg->airplane.airport_end = airport.id;
-			
+
 			//add airport to destination
 		} else if (icmp(buffer, "board") == 0) {
 			//send confirmation to controler
@@ -159,39 +158,30 @@ DWORD WINAPI read_command(void *param) {
 
 DWORD WINAPI read_shared_memory(void *param) {
 	Config *cfg = (Config *) param;
-	HANDLE handles[3];
 	SharedBuffer buffer;
-	handles[0] = cfg->stop_event;
-	handles[1] = cfg->stop_airplane;
-	handles[2] = cfg->sem_itemA;
-	DWORD res;
-	while ((!((res = WaitForMultipleObjects(3, handles, FALSE, INFINITE)) == WAIT_OBJECT_0 || res == (WAIT_OBJECT_0 + 1)))
-		&& !cfg->die) {
-		receive_command(cfg, &buffer);
-		if (buffer.to_id == cfg->airplane.pid) {
-			// Handle command
-			// ...
-			sout("Command: %d\nFrom: %u\nTo: %u\n\n", buffer.cmd_id, buffer.from_id, buffer.to_id);
+	while (!cfg->die) {
+		if (receive_command(cfg, &buffer)) {
+			if (buffer.to_id == cfg->airplane.pid) {
+				// Handle command
+				// ...
+				sout("Command: %d\nFrom: %u\nTo: %u\n\n", buffer.cmd_id, buffer.from_id, buffer.to_id);
+			}
+		} else {
+			// if stop_event is triggered
+			// if stop_airplane is triggered this is redundant
+			cfg->die = TRUE;
 		}
 	}
-
-	cfg->die = TRUE;
 
 	return 0;
 }
 
 DWORD WINAPI send_heartbeat(void *param) {
 	Config *cfg = (Config *) param;
-	HANDLE handles[3];
 	SharedBuffer buffer;
-	handles[0] = cfg->stop_event;
-	handles[1] = cfg->stop_airplane;
-	handles[2] = cfg->sem_emptyC;
-	DWORD res;
 	buffer.from_id = cfg->airplane.pid;
 	buffer.cmd_id = CMD_HEARTBEAT;
-	while ((!((res = WaitForMultipleObjects(3, handles, FALSE, INFINITE)) == WAIT_OBJECT_0 || res == (WAIT_OBJECT_0 + 1)))
-		&& !cfg->die) {
+	while (!cfg->die) {
 		send_command(cfg, &buffer);
 		Sleep(3000);
 	}
@@ -199,24 +189,57 @@ DWORD WINAPI send_heartbeat(void *param) {
 	return 0;
 }
 
+/*
+* Wait for 3 handles
+* stop_event = System has been shutdown
+* stop_airplane = Airplane has been shutdown
+* sem_itemA = There is a new item on the circular buffer
+*
+* Check if it's for this airplane
+* if it is consume the item by incrementing the "out" index
+* and releasing the sem_emptyA semaphore (meaning there is a new empty space)
+* else release the sem_itemA semaphore (meaning the item has not been consumed)
+*/
 BOOL receive_command(Config *cfg, SharedBuffer *sb) {
-	WaitForSingleObject(cfg->mtx_A, INFINITE);
-	CopyMemory(sb, &(cfg->memory->bufferAirplane[cfg->memory->outA]), sizeof(SharedBuffer));
-	if (sb->to_id == cfg->airplane.pid) {
-		cfg->memory->outA = (cfg->memory->outA + 1) % MAX_SHARED_BUFFER;
-	}
-	ReleaseMutex(cfg->mtx_A);
-	(sb->to_id == cfg->airplane.pid) ? ReleaseSemaphore(cfg->sem_emptyA, 1, NULL) : ReleaseSemaphore(cfg->sem_itemA, 1, NULL);
-
-	return FALSE;
+	HANDLE handles[3];
+	handles[0] = cfg->stop_event;
+	handles[1] = cfg->stop_airplane;
+	handles[2] = cfg->sem_itemA;
+	DWORD res;
+	do {
+		if (!((res = WaitForMultipleObjects(3, handles, FALSE, INFINITE)) == WAIT_OBJECT_0 || res == (WAIT_OBJECT_0 + 1))) {
+			WaitForSingleObject(cfg->mtx_A, INFINITE);
+			CopyMemory(sb, &(cfg->memory->bufferAirplane[cfg->memory->outA]), sizeof(SharedBuffer));
+			if (sb->to_id == cfg->airplane.pid) {
+				cfg->memory->outA = (cfg->memory->outA + 1) % MAX_SHARED_BUFFER;
+			}
+			ReleaseMutex(cfg->mtx_A);
+			if (sb->to_id == cfg->airplane.pid) {
+				ReleaseSemaphore(cfg->sem_emptyA, 1, NULL);
+				return TRUE;
+			} else {
+				ReleaseSemaphore(cfg->sem_itemA, 1, NULL);
+			}
+		} else {
+			return FALSE;
+		}
+	} while (TRUE);
 }
 
 BOOL send_command(Config *cfg, SharedBuffer *sb) {
-	WaitForSingleObject(cfg->mtx_C, INFINITE);
-	CopyMemory(&(cfg->memory->bufferControl[cfg->memory->inC]), sb, sizeof(SharedBuffer));
-	cfg->memory->inC = (cfg->memory->inC + 1) % MAX_SHARED_BUFFER;
-	ReleaseMutex(cfg->mtx_C);
-	ReleaseSemaphore(cfg->sem_itemC, 1, NULL);
+	HANDLE handles[3];
+	handles[0] = cfg->stop_event;
+	handles[1] = cfg->stop_airplane;
+	handles[2] = cfg->sem_emptyC;
+	DWORD res;
+	if (!((res = WaitForMultipleObjects(3, handles, FALSE, INFINITE)) == WAIT_OBJECT_0 || res == (WAIT_OBJECT_0 + 1))) {
+		WaitForSingleObject(cfg->mtx_C, INFINITE);
+		CopyMemory(&(cfg->memory->bufferControl[cfg->memory->inC]), sb, sizeof(SharedBuffer));
+		cfg->memory->inC = (cfg->memory->inC + 1) % MAX_SHARED_BUFFER;
+		ReleaseMutex(cfg->mtx_C);
+		ReleaseSemaphore(cfg->sem_itemC, 1, NULL);
+		return TRUE;
+	}
 
 	return FALSE;
 }

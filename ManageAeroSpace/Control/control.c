@@ -270,12 +270,7 @@ DWORD WINAPI read_command(void *param) {
 
 DWORD WINAPI read_shared_memory(void *param) {
 	Config *cfg = (Config *) param;
-	HANDLE handlesC[2], handlesA[2];
 	SharedBuffer buffer;
-	handlesC[0] = cfg->stop_event;
-	handlesC[1] = cfg->sem_itemC;
-	handlesA[0] = cfg->stop_event;
-	handlesA[1] = cfg->sem_emptyA;
 	while (!cfg->die) {
 		// Handle buffer
 		// ...
@@ -314,10 +309,10 @@ DWORD WINAPI read_shared_memory(void *param) {
 }
 
 BOOL receive_command(Config *cfg, SharedBuffer *sb) {
-	HANDLE handlesC[2];
-	handlesC[0] = cfg->stop_event;
-	handlesC[1] = cfg->sem_itemC;
-	if (WaitForMultipleObjects(2, handlesC, FALSE, INFINITE) != WAIT_OBJECT_0) {
+	HANDLE handles[2];
+	handles[0] = cfg->stop_event;
+	handles[1] = cfg->sem_itemC;
+	if (WaitForMultipleObjects(2, handles, FALSE, INFINITE) != WAIT_OBJECT_0) {
 		WaitForSingleObject(cfg->mtx_C, INFINITE);
 		CopyMemory(sb, &(cfg->memory->bufferControl[cfg->memory->outC]), sizeof(SharedBuffer));
 		cfg->memory->outC = (cfg->memory->outC + 1) % MAX_SHARED_BUFFER;
@@ -330,10 +325,10 @@ BOOL receive_command(Config *cfg, SharedBuffer *sb) {
 }
 
 BOOL send_command(Config *cfg, SharedBuffer *sb) {
-	HANDLE handlesA[2];
-	handlesA[0] = cfg->stop_event;
-	handlesA[1] = cfg->sem_emptyA;
-	if (WaitForMultipleObjects(2, handlesA, FALSE, INFINITE) != WAIT_OBJECT_0) {
+	HANDLE handles[2];
+	handles[0] = cfg->stop_event;
+	handles[1] = cfg->sem_emptyA;
+	if (WaitForMultipleObjects(2, handles, FALSE, INFINITE) != WAIT_OBJECT_0) {
 		WaitForSingleObject(cfg->mtx_A, INFINITE);
 		CopyMemory(&(cfg->memory->bufferAirplane[cfg->memory->inA]), sb, sizeof(SharedBuffer));
 		cfg->memory->inA = (cfg->memory->inA + 1) % MAX_SHARED_BUFFER;
