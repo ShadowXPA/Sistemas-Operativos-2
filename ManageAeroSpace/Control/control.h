@@ -17,6 +17,7 @@
 #define MTX_A _T("ControlMutexA")
 
 typedef struct cfg {
+	BOOL die;
 	unsigned int max_airport;			// Maximum number of airports
 	unsigned int max_airplane;			// Maximum number of airplanes
 	unsigned int max_passenger;			// Maximum number of passengers
@@ -76,6 +77,7 @@ DWORD WINAPI read_named_pipes(void *);
 void *get_by_id(Config *, unsigned int);
 Airport *get_airport_by_id(Config *, unsigned int);
 Airplane *get_airplane_by_id(Config *, unsigned int);
+Airplane *get_airplane_by_pid(Config *, int);
 Passenger *get_passenger_by_id(Config *, unsigned int);
 Airport *get_available_airport(Config *);
 Airplane *get_available_airplane(Config *);
@@ -94,5 +96,8 @@ BOOL remove_passenger(Config *, unsigned int);
 void print_airports(Config *);
 void print_airplane(Config *);
 void print_passenger(Config *);
+
+void receive_command(Config *, SharedBuffer *);
+void send_command(Config *, SharedBuffer *);
 
 #endif // !CONTROL_H

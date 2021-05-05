@@ -33,7 +33,8 @@ extern "C" {
 #define _contains(str, search) _tcsstr(str, search)
 #define contains(str, search) _contains(str, _T(search))
 #define _cpy(dest, src, size) _tcscpy_s(dest, size, src)
-#define cpy(dest, src, size) _cpy(dest, src, size)
+#define cpy(dest, src, size) _cpy(dest, _T(src), size)
+#define itos(num, buffer, buffer_size) _itot_s(num, buffer, buffer_size, 10)
 
 #define MAX_MAP 1000
 #define MAX_NAME 50
@@ -54,7 +55,17 @@ extern "C" {
 #define STOP_SYSTEM_EVENT _T("StopEvent")
 
 	// Command IDs
+#define CMD_HELLO 1
+#define CMD_BOARD 2
+#define CMD_LIFT_OFF 3
+#define CMD_FLYING 4
+#define CMD_AVOID_COLLISION 5
+#define CMD_LANDED 6
+#define CMD_CRASHED_RETIRED 7
+#define CMD_SEND_DESTINATION 8
+#define CMD_OK 200
 #define CMD_HEARTBEAT 322
+#define CMD_ERROR 400
 
 	DLL_API typedef struct point {
 		unsigned int x, y;
@@ -69,6 +80,7 @@ extern "C" {
 
 	DLL_API typedef struct airplane {
 		unsigned int id;					// 91 ~ 190, MAYBE ADD PID?
+		unsigned int pid;
 		unsigned int active : 1;
 		TCHAR name[MAX_NAME];
 		int velocity;

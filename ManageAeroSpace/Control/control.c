@@ -255,6 +255,7 @@ DWORD WINAPI read_command(void *param) {
 			sout("exit   -> Stops the whole system\n");
 		} else if (icmp(buffer, "exit") == 0) {
 			sout("Stopping system...\n");
+			cfg->die = TRUE;
 		} else if (icmp(buffer, "cfg") == 0) {
 			sout("Max. Airport: %u\nMax. Airplane: %u\nMax. Passenger: %u\n", cfg->max_airport, cfg->max_airplane, cfg->max_passenger);
 			sout("Memory: %p\n", cfg->memory);
@@ -262,23 +263,21 @@ DWORD WINAPI read_command(void *param) {
 		} else {
 			sout("Invalid command!\n");
 		}
-	} while (icmp(buffer, "exit") != 0);
+	} while (!cfg->die);
 	SetEvent(cfg->stop_event);
 	return 0;
 }
 
 DWORD WINAPI read_shared_memory(void *param) {
 	Config *cfg = (Config *) param;
-	HANDLE handles[2];
+	HANDLE handlesC[2], handlesA[2];
 	SharedBuffer buffer;
-	handles[0] = cfg->stop_event;
-	handles[1] = cfg->sem_itemC;
-	while (WaitForMultipleObjects(2, handles, FALSE, INFINITE) != WAIT_OBJECT_0) {
-		WaitForSingleObject(cfg->mtx_C, INFINITE);
-		CopyMemory(&buffer, &(cfg->memory->bufferControl[cfg->memory->outC]), sizeof(SharedBuffer));
-		cfg->memory->outC = (cfg->memory->outC + 1) % MAX_SHARED_BUFFER;
-		ReleaseMutex(cfg->mtx_C);
-		ReleaseSemaphore(cfg->sem_emptyC, 1, NULL);
+	handlesC[0] = cfg->stop_event;
+	handlesC[1] = cfg->sem_itemC;
+	handlesA[0] = cfg->stop_event;
+	handlesA[1] = cfg->sem_emptyA;
+	while ((WaitForMultipleObjects(2, handlesC, FALSE, INFINITE) != WAIT_OBJECT_0) && !cfg->die) {
+		receive_command(cfg, &buffer);
 		// Handle buffer
 		// ...
 		// Receive new airplane
@@ -291,9 +290,20 @@ DWORD WINAPI read_shared_memory(void *param) {
 		// Airplane sends heartbeat
 		// Send destination coordinates
 		switch (buffer.cmd_id) {
+
+			case CMD_HELLO:
+			{
+				break;
+			}
 			case CMD_HEARTBEAT:
 			{
 				sout("[SharedMemory] Heartbeat from: %u\n", buffer.from_id);
+				buffer.to_id = buffer.from_id;
+				buffer.from_id = 0;
+				buffer.cmd_id = CMD_OK;
+				if (WaitForMultipleObjects(2, handlesA, FALSE, INFINITE) != WAIT_OBJECT_0) {
+					send_command(cfg, &buffer);
+				}
 				break;
 			}
 			default:
@@ -302,6 +312,22 @@ DWORD WINAPI read_shared_memory(void *param) {
 		}
 	}
 	return 0;
+}
+
+void receive_command(Config *cfg, SharedBuffer *sb) {
+	WaitForSingleObject(cfg->mtx_C, INFINITE);
+	CopyMemory(sb, &(cfg->memory->bufferControl[cfg->memory->outC]), sizeof(SharedBuffer));
+	cfg->memory->outC = (cfg->memory->outC + 1) % MAX_SHARED_BUFFER;
+	ReleaseMutex(cfg->mtx_C);
+	ReleaseSemaphore(cfg->sem_emptyC, 1, NULL);
+}
+
+void send_command(Config *cfg, SharedBuffer *sb) {
+	WaitForSingleObject(cfg->mtx_A, INFINITE);
+	CopyMemory(&(cfg->memory->bufferAirplane[cfg->memory->inA]), sb, sizeof(SharedBuffer));
+	cfg->memory->inA = (cfg->memory->inA + 1) % MAX_SHARED_BUFFER;
+	ReleaseMutex(cfg->mtx_A);
+	ReleaseSemaphore(cfg->sem_itemA, 1, NULL);
 }
 
 DWORD WINAPI read_named_pipes(void *param) {
@@ -531,8 +557,3 @@ void print_passenger(Config *cfg) {
 		}
 	}
 }
-
-//void clear_input_stream(const FILE *const p) {
-//	int ch;
-//	while ((ch = _gettc(p)) != '\n' && ch != EOF);
-//}

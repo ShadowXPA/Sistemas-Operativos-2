@@ -5,6 +5,7 @@
 #define MTX_A _T("AviaoMutexA")
 
 typedef struct cfg {
+	BOOL die;
 	int (*move) (int, int, int, int, int *, int *);
 	Airplane airplane;
 	SharedMemory *memory;				// MapViewOfFile
@@ -29,6 +30,9 @@ typedef struct cfg {
 int init_config(Config *);
 void end_config(Config *cfg);
 void init_aviao(Config *cfg);
+
+void receive_command(Config *, SharedBuffer *);
+void send_command(Config *, SharedBuffer *);
 
 DWORD WINAPI read_command(void *param);
 DWORD WINAPI read_shared_memory(void *param);
