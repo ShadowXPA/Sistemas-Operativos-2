@@ -284,15 +284,35 @@ DWORD WINAPI read_shared_memory(void *param) {
 		// Airplane sends heartbeat
 		// Send destination coordinates
 		if (receive_command(cfg, &buffer)) {
+			buffer.to_id = buffer.from_id;
+			buffer.from_id = 0;
 			switch (buffer.cmd_id) {
 				case CMD_HELLO:
 				{
-
+					if (add_airplane(cfg, &buffer.command.airplane)) {
+						buffer.cmd_id |= CMD_OK;
+						sout("A new airplane has been registered!\n");
+						Airplane ap = buffer.command.airplane;
+						sout("Airplane: '%s' (%u, %u)\n", ap.name, ap.coordinates.x, ap.coordinates.y);
+						sout("Located in: '%s' (%u, %u)\n", ap.airport_start.name, ap.airport_start.coordinates.x, ap.airport_start.coordinates.y);
+					} else {
+						buffer.cmd_id |= CMD_ERROR;
+						cpy(buffer.command.str, "Could not add airplane!", MAX_NAME);
+					}
+					send_command(cfg, &buffer);
 					break;
 				}
 				case CMD_SEND_DESTINATION:
 				{
-
+					Airport *airport = get_airport_by_name(cfg, buffer.command.airport.name);
+					if (airport == NULL) {
+						buffer.cmd_id |= CMD_ERROR;
+						cpy(buffer.command.str, "Airport does not exist!", MAX_NAME);
+					} else {
+						buffer.cmd_id |= CMD_OK;
+						buffer.command.airport = *airport;
+					}
+					send_command(cfg, &buffer);
 					break;
 				}
 				case CMD_HEARTBEAT:
@@ -434,7 +454,7 @@ Passenger *get_available_passenger(Config *cfg) {
 Airport *get_airport_by_name(Config *cfg, const TCHAR *name) {
 	for (unsigned int i = 1; i <= cfg->max_airport; i++) {
 		Airport *airport = get_airport_by_id(cfg, i);
-		if (airport != NULL && _icmp(airport->name, name) == 0) {
+		if (airport != NULL && airport->active && _icmp(airport->name, name) == 0) {
 			return airport;
 		}
 	}
@@ -445,7 +465,7 @@ Airport *get_airport_by_name(Config *cfg, const TCHAR *name) {
 Airplane *get_airplane_by_name(Config *cfg, const TCHAR *name) {
 	for (unsigned int i = (cfg->max_airport + 1); i <= (cfg->max_airport + cfg->max_airplane); i++) {
 		Airplane *airplane = get_airplane_by_id(cfg, i);
-		if (airplane != NULL && _icmp(airplane->name, name) == 0) {
+		if (airplane != NULL && airplane->active && _icmp(airplane->name, name) == 0) {
 			return airplane;
 		}
 	}
@@ -456,7 +476,7 @@ Airplane *get_airplane_by_name(Config *cfg, const TCHAR *name) {
 Passenger *get_passenger_by_name(Config *cfg, const TCHAR *name) {
 	for (unsigned int i = (cfg->max_airport + cfg->max_airplane + 1); i <= (cfg->max_airport + cfg->max_airplane + cfg->max_passenger); i++) {
 		Passenger *passenger = get_passenger_by_id(cfg, i);
-		if (passenger != NULL && _icmp(passenger->name, name) == 0) {
+		if (passenger != NULL && passenger->active && _icmp(passenger->name, name) == 0) {
 			return passenger;
 		}
 	}
