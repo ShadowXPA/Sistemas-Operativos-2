@@ -1,6 +1,6 @@
 #include "aviao.h"
 
-BOOL init_config(Config* cfg) {
+BOOL init_config(Config *cfg) {
 	memset(cfg, 0, sizeof(Config));
 
 	cfg->mtx_memory = OpenMutex(MUTEX_ALL_ACCESS, FALSE, MTX_MEMORY);
@@ -30,7 +30,7 @@ BOOL init_config(Config* cfg) {
 	return TRUE;
 }
 
-void end_config(Config* cfg) {
+void end_config(Config *cfg) {
 	UnmapViewOfFile(cfg->memory);
 	CloseHandle(cfg->obj_map);
 	CloseHandle(cfg->mtx_memory);
@@ -44,7 +44,7 @@ void end_config(Config* cfg) {
 	CloseHandle(cfg->stop_airplane);
 }
 
-void init_aviao(Config* cfg) {
+void init_aviao(Config *cfg) {
 	TCHAR buffer[MAX_NAME] = { 0 };
 	SharedBuffer sb;
 	// init window (Win32)
@@ -53,12 +53,12 @@ void init_aviao(Config* cfg) {
 	cfg->obj_map = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, FILE_MAPPING_NAME);
 	if (cfg->obj_map == NULL)
 		return;
-	cfg->memory = (SharedMemory*)MapViewOfFile(cfg->obj_map, FILE_MAP_ALL_ACCESS, 0, 0, 0);
+	cfg->memory = (SharedMemory *) MapViewOfFile(cfg->obj_map, FILE_MAP_ALL_ACCESS, 0, 0, 0);
 	if (cfg->memory == NULL)
 		return;
 
 	WaitForSingleObject(cfg->mtx_memory, INFINITE);
-	if (cfg->memory->accepting_planes) {
+	if (!cfg->memory->accepting_planes) {
 		ReleaseMutex(cfg->mtx_memory);
 		return;
 	}
@@ -83,11 +83,10 @@ void init_aviao(Config* cfg) {
 	if (sb.cmd_id == (CMD_HELLO | CMD_OK)) {
 		cfg->airplane = sb.command.airplane;
 		sout("Airplane registered!\n");
-		sout("Name: '%s' (%u, %u)\nVelocity: %d\nCapacity: %d\nMax. Capacity: %d\nCoordinates: (%u, %u)\nDeparture: (%u)\nDestination: (%u)\n\n",
+		sout("Name: '%s' (ID: %u, PID: %u)\nVelocity: %d\nCapacity: %d\nMax. Capacity: %d\nCoordinates: (x: %u, y: %u)\nDeparture: '%s' (ID: %u)\nDestination: '%s' (ID: %u)\n\n",
 			cfg->airplane.name, cfg->airplane.id, cfg->airplane.pid, cfg->airplane.velocity, cfg->airplane.capacity, cfg->airplane.max_capacity,
-			cfg->airplane.coordinates.x, cfg->airplane.coordinates.y, cfg->airplane.airport_start, cfg->airplane.airport_end);
-	}
-	else {
+			cfg->airplane.coordinates.x, cfg->airplane.coordinates.y, cfg->airplane.airport_start.name, cfg->airplane.airport_start.id, cfg->airplane.airport_end.name, cfg->airplane.airport_end.id);
+	} else {
 		sout("Airplane not registered!\nError: '%s'\n", sb.command.str);
 		return;
 	}
@@ -111,8 +110,8 @@ void init_aviao(Config* cfg) {
 	CloseHandle(thread[2]);
 }
 
-DWORD WINAPI read_command(void* param) {
-	Config* cfg = (Config*)param;
+DWORD WINAPI read_command(void *param) {
+	Config *cfg = (Config *) param;
 	TCHAR buffer[MAX_NAME] = { 0 };
 	SharedBuffer sb;
 	do {
@@ -134,33 +133,28 @@ DWORD WINAPI read_command(void* param) {
 			sb.cmd_id = CMD_SEND_DESTINATION;
 			sb.command.airport = airport;
 			send_command(cfg, &sb);
-		}
-		else if (icmp(buffer, "board") == 0) {
+		} else if (icmp(buffer, "board") == 0) {
 			//send confirmation to controler
 			sb.from_id = cfg->airplane.pid;
 			sb.cmd_id = CMD_BOARD;
 			send_command(cfg, &sb);
-		}
-		else if (icmp(buffer, "start") == 0) {
+		} else if (icmp(buffer, "start") == 0) {
 			//send confirmation to controler that I want to start the trip
 			sb.from_id = cfg->airplane.pid;
 			sb.cmd_id = CMD_FLYING;
 
 			send_command(cfg, &sb);
-		}
-		else if (icmp(buffer, "help") == 0) {
+		} else if (icmp(buffer, "help") == 0) {
 			// show all commands
 			sout("help        -> Shows this\n");
 			sout("destination -> Define trip destination\n");
 			sout("board       -> Board passengers in the airplane\n");
 			sout("start       -> Start the trip\n");
 			sout("exit        -> Stops the airplane\n");
-		}
-		else if (icmp(buffer, "exit") == 0) {
+		} else if (icmp(buffer, "exit") == 0) {
 			cfg->die = TRUE;
 			sout("Stopping airplane...\n");
-		}
-		else {
+		} else {
 			sout("Invalid command!\n");
 		}
 	} while (!cfg->die);
@@ -170,72 +164,72 @@ DWORD WINAPI read_command(void* param) {
 	return 0;
 }
 
-DWORD WINAPI read_shared_memory(void* param) {
-	Config* cfg = (Config*)param;
+DWORD WINAPI read_shared_memory(void *param) {
+	Config *cfg = (Config *) param;
 	SharedBuffer buffer;
 	while (!cfg->die) {
 		if (receive_command(cfg, &buffer)) {
 			if (buffer.to_id == cfg->airplane.pid) {
-				// Handle command
-				// ...
 				switch (buffer.cmd_id) {
-				case(CMD_SEND_DESTINATION | CMD_OK):
-				{
-					//add airport to airport end (destination)
-					cfg->airplane.airport_end = buffer.command.airport;
-					sout("Destination airport has been set!\nCoordinates: (%u, %u)\n", cfg->airplane.airport_end.coordinates.x, cfg->airplane.airport_end.coordinates.y);
-					break;
-				}
-				case(CMD_SEND_DESTINATION | CMD_ERROR):
-				{
-					//error in send destination
-					sout("Error: '%s'\n", buffer.command.str);
-					break;
-				}
-				case(CMD_BOARD | CMD_OK):
-				{
-					//receive number of passengers
+					case(CMD_SEND_DESTINATION | CMD_OK):
+					{
+						//add airport to airport end (destination)
+						cfg->airplane.airport_end = buffer.command.airport;
+						Point p = cfg->airplane.airport_end.coordinates;
+						sout("Destination airport has been set!\nCoordinates: (%u, %u)\n", p.x, p.y);
+						break;
+					}
+					case(CMD_SEND_DESTINATION | CMD_ERROR):
+					{
+						//error in send destination
+						sout("Error: '%s'\n", buffer.command.str);
+						break;
+					}
+					case(CMD_BOARD | CMD_OK):
+					{
+						//receive number of passengers
 
-					break;
-				}
-				case(CMD_BOARD | CMD_ERROR):
-				{
-					//error in board passengers
-					sout("Error: '%s'\n", buffer.command.str);
-					break;
-				}
-				case(CMD_FLYING | CMD_OK):
-				{
-					//receive OK from controler that I can start the trip
+						break;
+					}
+					case(CMD_BOARD | CMD_ERROR):
+					{
+						//error in board passengers
+						sout("Error: '%s'\n", buffer.command.str);
+						break;
+					}
+					case(CMD_FLYING | CMD_OK):
+					{
+						//receive OK from controler that I can start the trip
 
-					break;
-				}
-				case(CMD_FLYING | CMD_ERROR):
-				{
-					//error saying to the control that the trip is starting
-					sout("Error: '%s'\n", buffer.command.str);
-					break;
-				}
-				default: {
-					sout("Oops something went wrong!\n");
-					break;
-				}
+						break;
+					}
+					case(CMD_FLYING | CMD_ERROR):
+					{
+						//error saying to the control that the trip is starting
+						sout("Error: '%s'\n", buffer.command.str);
+						break;
+					}
+					default:
+					{
+						sout("Oops something went wrong!\n");
+						break;
+					}
 				}
 				//sout("Command: %d\nFrom: %u\nTo: %u\n\n", buffer.cmd_id, buffer.from_id, buffer.to_id);
 			}
-		}
-		else {
+		} else {
 			// if stop_event is triggered
 			// if stop_airplane is triggered this is redundant
 			cfg->die = TRUE;
+			sout("System has been stopped!\n");
 		}
 	}
 
 	return 0;
 }
 
-DWORD WINAPI send_heartbeat(void* param) {
-	Config* cfg = (Config*)param;
+DWORD WINAPI send_heartbeat(void *param) {
+	Config *cfg = (Config *) param;
 	SharedBuffer buffer;
 	buffer.from_id = cfg->airplane.pid;
 	buffer.cmd_id = CMD_HEARTBEAT;
@@ -258,7 +252,7 @@ DWORD WINAPI send_heartbeat(void* param) {
 * and releasing the sem_emptyA semaphore (meaning there is a new empty space)
 * else release the sem_itemA semaphore (meaning the item has not been consumed)
 */
-BOOL receive_command(Config* cfg, SharedBuffer* sb) {
+BOOL receive_command(Config *cfg, SharedBuffer *sb) {
 	HANDLE handles[3];
 	handles[0] = cfg->stop_event;
 	handles[1] = cfg->stop_airplane;
@@ -275,18 +269,16 @@ BOOL receive_command(Config* cfg, SharedBuffer* sb) {
 			if (sb->to_id == cfg->airplane.pid) {
 				ReleaseSemaphore(cfg->sem_emptyA, 1, NULL);
 				return TRUE;
-			}
-			else {
+			} else {
 				ReleaseSemaphore(cfg->sem_itemA, 1, NULL);
 			}
-		}
-		else {
+		} else {
 			return FALSE;
 		}
 	} while (TRUE);
 }
 
-BOOL send_command(Config* cfg, SharedBuffer* sb) {
+BOOL send_command(Config *cfg, SharedBuffer *sb) {
 	HANDLE handles[3];
 	handles[0] = cfg->stop_event;
 	handles[1] = cfg->stop_airplane;

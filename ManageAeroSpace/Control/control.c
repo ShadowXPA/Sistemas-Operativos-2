@@ -163,6 +163,8 @@ void init_control(Config *cfg) {
 	if (thread[2] == NULL)
 		return;
 
+	// TODO add new thread to set airplane->alive to 0 and "remove" airplanes after if they are still at 0
+
 	WaitForMultipleObjects(3, thread, TRUE, INFINITE);
 
 	CloseHandle(thread[0]);
@@ -284,8 +286,6 @@ DWORD WINAPI read_shared_memory(void *param) {
 		// Airplane sends heartbeat
 		// Send destination coordinates
 		if (receive_command(cfg, &buffer)) {
-			buffer.to_id = buffer.from_id;
-			buffer.from_id = 0;
 			switch (buffer.cmd_id) {
 				case CMD_HELLO:
 				{
@@ -293,12 +293,14 @@ DWORD WINAPI read_shared_memory(void *param) {
 						buffer.cmd_id |= CMD_OK;
 						sout("A new airplane has been registered!\n");
 						Airplane ap = buffer.command.airplane;
-						sout("Airplane: '%s' (%u, %u)\n", ap.name, ap.coordinates.x, ap.coordinates.y);
-						sout("Located in: '%s' (%u, %u)\n", ap.airport_start.name, ap.airport_start.coordinates.x, ap.airport_start.coordinates.y);
+						sout("Airplane: '%s' (ID: %u, PID: %u)\n", ap.name, ap.id, ap.pid);
+						sout("Located in: '%s' (x: %u, y: %u)\n", ap.airport_start.name, ap.airport_start.coordinates.x, ap.airport_start.coordinates.y);
 					} else {
 						buffer.cmd_id |= CMD_ERROR;
 						cpy(buffer.command.str, "Could not add airplane!", MAX_NAME);
 					}
+					buffer.to_id = buffer.from_id;
+					buffer.from_id = 0;
 					send_command(cfg, &buffer);
 					break;
 				}
@@ -310,18 +312,19 @@ DWORD WINAPI read_shared_memory(void *param) {
 						cpy(buffer.command.str, "Airport does not exist!", MAX_NAME);
 					} else {
 						buffer.cmd_id |= CMD_OK;
+						// TODO check airport if same
+						// set airport to airplane
 						buffer.command.airport = *airport;
 					}
+					buffer.to_id = buffer.from_id;
+					buffer.from_id = 0;
 					send_command(cfg, &buffer);
 					break;
 				}
 				case CMD_HEARTBEAT:
 				{
-					sout("[SharedMemory] Heartbeat from: %u\n", buffer.from_id);
-					buffer.to_id = buffer.from_id;
-					buffer.from_id = 0;
-					buffer.cmd_id = CMD_OK;
-					send_command(cfg, &buffer);
+					Airplane *airplane = get_airplane_by_pid(cfg, buffer.from_id);
+					airplane->alive = 1;
 					break;
 				}
 				default:
@@ -529,6 +532,7 @@ BOOL add_airplane(Config *cfg, Airplane *airplane) {
 		return FALSE;
 
 	tmp->active = 1;
+	tmp->alive = 1;
 	tmp->pid = airplane->pid;
 	_cpy(tmp->name, airplane->name, MAX_NAME);
 	tmp->max_capacity = airplane->max_capacity;
@@ -569,7 +573,7 @@ BOOL remove_airport(Config *cfg, unsigned int id) {
 	return FALSE;
 }
 
-BOOL remove_airplane(Config *cfg, unsigned int id) {
+BOOL remove_airplane(Config *cfg, unsigned int pid) {
 	return FALSE;
 }
 
@@ -581,7 +585,7 @@ void print_airports(Config *cfg) {
 	for (unsigned int i = 1; i <= cfg->max_airport; i++) {
 		Airport *airport = get_airport_by_id(cfg, i);
 		if (airport != NULL && airport->active) {
-			sout("Name: '%s' (%u)\nCoordinates: (%u, %u)\n\n", airport->name, airport->id, airport->coordinates.x, airport->coordinates.y);
+			sout("Name: '%s' (ID: %u)\nCoordinates: (x: %u, y: %u)\n\n", airport->name, airport->id, airport->coordinates.x, airport->coordinates.y);
 		}
 	}
 }
@@ -590,12 +594,11 @@ void print_airplane(Config *cfg) {
 	for (unsigned int i = (cfg->max_airport + 1); i <= (cfg->max_airport + cfg->max_airplane); i++) {
 		Airplane *airplane = get_airplane_by_id(cfg, i);
 		if (airplane != NULL && airplane->active) {
-			Airport *departure = get_airport_by_id(cfg, airplane->airport_start);
-			Airport *destination = get_airport_by_id(cfg, airplane->airport_end);
-			if (departure != NULL && destination != NULL)
-				sout("Name: '%s' (%u, %u)\nVelocity: %d\nCapacity: %d\nMax. Capacity: %d\nCoordinates: (%u, %u)\nDeparture: '%s' (%u)\nDestination: '%s' (%u)\n\n",
-					airplane->name, airplane->id, airplane->pid, airplane->velocity, airplane->capacity, airplane->max_capacity, airplane->coordinates.x, airplane->coordinates.y,
-					departure->name, departure->id, destination->name, destination->id);
+			Airport departure = airplane->airport_start;
+			Airport destination = airplane->airport_end;
+			sout("Name: '%s' (ID: %u, PID: %u)\nVelocity: %d\nCapacity: %d\nMax. Capacity: %d\nCoordinates: (x: %u, y: %u)\nDeparture: '%s' (ID: %u)\nDestination: '%s' (ID: %u)\n\n",
+				airplane->name, airplane->id, airplane->pid, airplane->velocity, airplane->capacity, airplane->max_capacity, airplane->coordinates.x, airplane->coordinates.y,
+				departure.name, departure.id, destination.name, destination.id);
 		}
 	}
 }
@@ -604,21 +607,17 @@ void print_passenger(Config *cfg) {
 	for (unsigned int i = (cfg->max_airport + cfg->max_airplane + 1); i <= (cfg->max_airport + cfg->max_airplane + cfg->max_passenger); i++) {
 		Passenger *passenger = get_passenger_by_id(cfg, i);
 		if (passenger != NULL && passenger->active) {
-			Airport *destination = get_airport_by_id(cfg, passenger->airport_end);
-			if (destination != NULL) {
-				sout("Name: '%s' (%u)\nDestination: '%s' (%u)\n", passenger->name, passenger->id, destination->name, destination->id);
-				if (passenger->airplane) {
-					Airplane *airplane = get_airplane_by_id(cfg, passenger->airplane);
-					if (airplane != NULL)
-						sout("Flying on: '%s' (%u)\nCoordinates: (%u, %u)\n", airplane->name, airplane->id, airplane->coordinates.x, airplane->coordinates.y);
-				} else {
-					Airport *current_airport = get_airport_by_id(cfg, passenger->airport);
-					if (current_airport != NULL)
-						sout("Waiting for airplane at: '%s' (%u)\nCoordinates: (%u, %u)\nWaiting time left: %d\n", current_airport->name, current_airport->id,
-							current_airport->coordinates.x, current_airport->coordinates.y, passenger->wait_time);
-				}
-				sout("\n");
+			Airport destination = passenger->airport_end;
+			sout("Name: '%s' (ID: %u)\nDestination: '%s' (ID: %u)\n", passenger->name, passenger->id, destination.name, destination.id);
+			if (passenger->airplane.pid) {
+				Airplane airplane = passenger->airplane;
+				sout("Flying on: '%s' (ID: %u, PID: %u)\nCoordinates: (x: %u, y: %u)\n", airplane.name, airplane.id, airplane.pid, airplane.coordinates.x, airplane.coordinates.y);
+			} else {
+				Airport current_airport = passenger->airport;
+				sout("Waiting for airplane at: '%s' (ID: %u)\nCoordinates: (x: %u, y: %u)\nWaiting time left: %d\n", current_airport.name, current_airport.id,
+					current_airport.coordinates.x, current_airport.coordinates.y, passenger->wait_time);
 			}
+			sout("\n");
 		}
 	}
 }
