@@ -81,7 +81,8 @@ extern "C" {
 	DLL_API typedef struct airplane {
 		unsigned int id;					// 91 ~ 190, MAYBE ADD PID?
 		unsigned int pid;
-		unsigned int active : 1;
+		unsigned int active : 1;			// See if it is in use
+		unsigned int alive : 1;				// For heartbeat
 		TCHAR name[MAX_NAME];
 		int velocity;
 		int capacity;						// Current capacity

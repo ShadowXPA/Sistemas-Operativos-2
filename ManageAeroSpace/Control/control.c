@@ -290,6 +290,11 @@ DWORD WINAPI read_shared_memory(void *param) {
 
 					break;
 				}
+				case CMD_SEND_DESTINATION:
+				{
+
+					break;
+				}
 				case CMD_HEARTBEAT:
 				{
 					sout("[SharedMemory] Heartbeat from: %u\n", buffer.from_id);
@@ -495,7 +500,7 @@ BOOL add_airplane(Config *cfg, Airplane *airplane) {
 	if (_tcsnlen(airplane->name, MAX_NAME) == 0 || get_airplane_by_name(cfg, airplane->name) != NULL)
 		return FALSE;
 
-	Airport *airport = get_airport_by_id(cfg, airplane->airport_start);
+	Airport *airport = get_airport_by_id(cfg, airplane->airport_start.id);
 	// index out of bounds?
 	if (airport == NULL)
 		return FALSE;
@@ -507,10 +512,15 @@ BOOL add_airplane(Config *cfg, Airplane *airplane) {
 	tmp->pid = airplane->pid;
 	_cpy(tmp->name, airplane->name, MAX_NAME);
 	tmp->max_capacity = airplane->max_capacity;
-	tmp->airport_start = 
-	
+	tmp->capacity = 0;
+	tmp->velocity = airplane->velocity;
+	tmp->coordinates = airport->coordinates;
+	tmp->airport_start = *airport;
+	tmp->airport_end = (const Airport){ 0 };
 
-	return FALSE;
+	*airplane = *tmp;
+
+	return TRUE;
 }
 
 BOOL add_passenger(Config *cfg, Passenger *passenger) {
