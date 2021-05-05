@@ -173,7 +173,7 @@ DWORD WINAPI send_heartbeat(void *param) {
 	return 0;
 }
 
-void receive_command(Config *cfg, SharedBuffer *sb) {
+BOOL receive_command(Config *cfg, SharedBuffer *sb) {
 	WaitForSingleObject(cfg->mtx_A, INFINITE);
 	CopyMemory(sb, &(cfg->memory->bufferAirplane[cfg->memory->outA]), sizeof(SharedBuffer));
 	if (sb->to_id == cfg->airplane.pid) {
@@ -181,12 +181,16 @@ void receive_command(Config *cfg, SharedBuffer *sb) {
 	}
 	ReleaseMutex(cfg->mtx_A);
 	(sb->to_id == cfg->airplane.pid) ? ReleaseSemaphore(cfg->sem_emptyA, 1, NULL) : ReleaseSemaphore(cfg->sem_itemA, 1, NULL);
+
+	return FALSE;
 }
 
-void send_command(Config *cfg, SharedBuffer *sb) {
+BOOL send_command(Config *cfg, SharedBuffer *sb) {
 	WaitForSingleObject(cfg->mtx_C, INFINITE);
 	CopyMemory(&(cfg->memory->bufferControl[cfg->memory->inC]), sb, sizeof(SharedBuffer));
 	cfg->memory->inC = (cfg->memory->inC + 1) % MAX_SHARED_BUFFER;
 	ReleaseMutex(cfg->mtx_C);
 	ReleaseSemaphore(cfg->sem_itemC, 1, NULL);
+
+	return FALSE;
 }

@@ -276,8 +276,7 @@ DWORD WINAPI read_shared_memory(void *param) {
 	handlesC[1] = cfg->sem_itemC;
 	handlesA[0] = cfg->stop_event;
 	handlesA[1] = cfg->sem_emptyA;
-	while ((WaitForMultipleObjects(2, handlesC, FALSE, INFINITE) != WAIT_OBJECT_0) && !cfg->die) {
-		receive_command(cfg, &buffer);
+	while (!cfg->die) {
 		// Handle buffer
 		// ...
 		// Receive new airplane
@@ -289,45 +288,61 @@ DWORD WINAPI read_shared_memory(void *param) {
 		// Airplane has crashed or pilot retired
 		// Airplane sends heartbeat
 		// Send destination coordinates
-		switch (buffer.cmd_id) {
+		if (receive_command(cfg, &buffer)) {
+			switch (buffer.cmd_id) {
+				case CMD_HELLO:
+				{
 
-			case CMD_HELLO:
-			{
-				break;
-			}
-			case CMD_HEARTBEAT:
-			{
-				sout("[SharedMemory] Heartbeat from: %u\n", buffer.from_id);
-				buffer.to_id = buffer.from_id;
-				buffer.from_id = 0;
-				buffer.cmd_id = CMD_OK;
-				if (WaitForMultipleObjects(2, handlesA, FALSE, INFINITE) != WAIT_OBJECT_0) {
-					send_command(cfg, &buffer);
+					break;
 				}
-				break;
+				case CMD_HEARTBEAT:
+				{
+					sout("[SharedMemory] Heartbeat from: %u\n", buffer.from_id);
+					buffer.to_id = buffer.from_id;
+					buffer.from_id = 0;
+					buffer.cmd_id = CMD_OK;
+					send_command(cfg, &buffer);
+					break;
+				}
+				default:
+					sout("[SharedMemory] Invalid Command!\n");
+					break;
 			}
-			default:
-				sout("[SharedMemory] Invalid Command!\n");
-				break;
 		}
 	}
 	return 0;
 }
 
-void receive_command(Config *cfg, SharedBuffer *sb) {
-	WaitForSingleObject(cfg->mtx_C, INFINITE);
-	CopyMemory(sb, &(cfg->memory->bufferControl[cfg->memory->outC]), sizeof(SharedBuffer));
-	cfg->memory->outC = (cfg->memory->outC + 1) % MAX_SHARED_BUFFER;
-	ReleaseMutex(cfg->mtx_C);
-	ReleaseSemaphore(cfg->sem_emptyC, 1, NULL);
+BOOL receive_command(Config *cfg, SharedBuffer *sb) {
+	HANDLE handlesC[2];
+	handlesC[0] = cfg->stop_event;
+	handlesC[1] = cfg->sem_itemC;
+	if (WaitForMultipleObjects(2, handlesC, FALSE, INFINITE) != WAIT_OBJECT_0) {
+		WaitForSingleObject(cfg->mtx_C, INFINITE);
+		CopyMemory(sb, &(cfg->memory->bufferControl[cfg->memory->outC]), sizeof(SharedBuffer));
+		cfg->memory->outC = (cfg->memory->outC + 1) % MAX_SHARED_BUFFER;
+		ReleaseMutex(cfg->mtx_C);
+		ReleaseSemaphore(cfg->sem_emptyC, 1, NULL);
+		return TRUE;
+	}
+
+	return FALSE;
 }
 
-void send_command(Config *cfg, SharedBuffer *sb) {
-	WaitForSingleObject(cfg->mtx_A, INFINITE);
-	CopyMemory(&(cfg->memory->bufferAirplane[cfg->memory->inA]), sb, sizeof(SharedBuffer));
-	cfg->memory->inA = (cfg->memory->inA + 1) % MAX_SHARED_BUFFER;
-	ReleaseMutex(cfg->mtx_A);
-	ReleaseSemaphore(cfg->sem_itemA, 1, NULL);
+BOOL send_command(Config *cfg, SharedBuffer *sb) {
+	HANDLE handlesA[2];
+	handlesA[0] = cfg->stop_event;
+	handlesA[1] = cfg->sem_emptyA;
+	if (WaitForMultipleObjects(2, handlesA, FALSE, INFINITE) != WAIT_OBJECT_0) {
+		WaitForSingleObject(cfg->mtx_A, INFINITE);
+		CopyMemory(&(cfg->memory->bufferAirplane[cfg->memory->inA]), sb, sizeof(SharedBuffer));
+		cfg->memory->inA = (cfg->memory->inA + 1) % MAX_SHARED_BUFFER;
+		ReleaseMutex(cfg->mtx_A);
+		ReleaseSemaphore(cfg->sem_itemA, 1, NULL);
+		return TRUE;
+	}
+
+	return FALSE;
 }
 
 DWORD WINAPI read_named_pipes(void *param) {
@@ -366,8 +381,13 @@ Airplane *get_airplane_by_id(Config *cfg, unsigned int id) {
 	return ((Airplane *) get_by_id(cfg, id));
 }
 
-Airplane *get_airplane_by_pid(Config *, int) {
-
+Airplane *get_airplane_by_pid(Config *cfg, unsigned int pid) {
+	for (unsigned int i = (cfg->max_airport + 1); i <= (cfg->max_airport + cfg->max_airplane); i++) {
+		Airplane *airplane = get_airplane_by_id(cfg, i);
+		if (airplane != NULL && airplane->pid == pid) {
+			return airplane;
+		}
+	}
 
 	return NULL;
 }
@@ -534,8 +554,8 @@ void print_airplane(Config *cfg) {
 			Airport *departure = get_airport_by_id(cfg, airplane->airport_start);
 			Airport *destination = get_airport_by_id(cfg, airplane->airport_end);
 			if (departure != NULL && destination != NULL)
-				sout("Name: '%s' (%u)\nVelocity: %d\nCapacity: %d\nMax. Capacity: %d\nCoordinates: (%u, %u)\nDeparture: '%s' (%u)\nDestination: '%s' (%u)\n\n",
-					airplane->name, airplane->id, airplane->velocity, airplane->capacity, airplane->max_capacity, airplane->coordinates.x, airplane->coordinates.y,
+				sout("Name: '%s' (%u, %u)\nVelocity: %d\nCapacity: %d\nMax. Capacity: %d\nCoordinates: (%u, %u)\nDeparture: '%s' (%u)\nDestination: '%s' (%u)\n\n",
+					airplane->name, airplane->id, airplane->pid, airplane->velocity, airplane->capacity, airplane->max_capacity, airplane->coordinates.x, airplane->coordinates.y,
 					departure->name, departure->id, destination->name, destination->id);
 		}
 	}
