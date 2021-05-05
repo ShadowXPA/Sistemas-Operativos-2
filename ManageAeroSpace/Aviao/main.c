@@ -27,7 +27,7 @@ int _tmain(int argc, TCHAR** argv, TCHAR** envp) {
 	}
 	cfg->airplane.max_capacity = _ttoi(argv[1]);
 	cfg->airplane.velocity = _ttoi(argv[2]);
-	cfg->airplane.airport_start = _ttoi(argv[3]);
+	cfg->airplane.airport_start.id = _ttoi(argv[3]);
 	cfg->airplane.pid = GetProcessId(GetCurrentProcess());
 
 	init_aviao(cfg);
