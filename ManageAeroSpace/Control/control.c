@@ -366,6 +366,12 @@ Airplane *get_airplane_by_id(Config *cfg, unsigned int id) {
 	return ((Airplane *) get_by_id(cfg, id));
 }
 
+Airplane *get_airplane_by_pid(Config *, int) {
+
+
+	return NULL;
+}
+
 Passenger *get_passenger_by_id(Config *cfg, unsigned int id) {
 	if (id < (cfg->max_airport + cfg->max_airplane + 1))
 		return NULL;

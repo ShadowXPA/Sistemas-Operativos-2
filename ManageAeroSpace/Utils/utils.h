@@ -104,6 +104,8 @@ extern "C" {
 	DLL_API typedef union command {
 		Point coordinates;
 		TCHAR str[MAX_NAME];
+		Airplane airplane;
+		Airport airport;
 	} Command;
 
 	DLL_API typedef struct sharedbuffer {
