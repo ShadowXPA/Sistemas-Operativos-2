@@ -71,8 +71,6 @@ BOOL init_config(Config *cfg) {
 		}
 	}
 
-	cfg->memory->max_airport = cfg->max_airport;
-
 	cfg->airports = calloc(cfg->max_airport, sizeof(Airport));
 	cfg->airplanes = calloc(cfg->max_airplane, sizeof(Airplane));
 	cfg->passengers = calloc(cfg->max_passenger, sizeof(Passenger));
@@ -144,6 +142,7 @@ void init_control(Config *cfg) {
 	if (cfg->memory == NULL)
 		return;
 	cfg->memory->accepting_planes = TRUE;
+	cfg->memory->max_airport = cfg->max_airport;
 	// init named pipes
 	// init threads:
 	HANDLE thread[4];
@@ -162,7 +161,6 @@ void init_control(Config *cfg) {
 	thread[3] = CreateThread(NULL, 0, handle_heartbeat, cfg, 0, NULL);
 	if (thread[3] == NULL)
 		return;
-	// TODO add new thread to set airplane->alive to 0 and "remove" airplanes after if they are still at 0
 
 	WaitForMultipleObjects(4, thread, TRUE, INFINITE);
 
@@ -340,11 +338,34 @@ DWORD WINAPI read_shared_memory(void *param) {
 					LeaveCriticalSection(&cfg->cs_airport);
 					break;
 				}
+				case CMD_LIFT_OFF:
+				{
+					EnterCriticalSection(&cfg->cs_airplane);
+					Airplane *airplane = get_airplane_by_pid(cfg, buffer.from_id);
+					if (airplane != NULL && airplane->active) {
+						buffer.cmd_id |= CMD_OK;
+						sout("Airplane '%s' is taking off.\nStarting at '%s' at (x: %u, y: %u)\nGoing to '%s' at (x: %u, y: %u)\n",
+							airplane->name, airplane->airport_start.name,
+							airplane->airport_start.coordinates.x, airplane->airport_start.coordinates.y,
+							airplane->airport_end.name,
+							airplane->airport_end.coordinates.x, airplane->airport_end.coordinates.y);
+					} else {
+						buffer.cmd_id |= CMD_ERROR;
+						cpy(buffer.command.str, "Airplane does not exist!", MAX_NAME);
+					}
+					buffer.to_id = buffer.from_id;
+					buffer.from_id = 0;
+					send_command(cfg, &buffer);
+					LeaveCriticalSection(&cfg->cs_airplane);
+					break;
+				}
 				case CMD_HEARTBEAT:
 				{
 					Airplane *airplane = get_airplane_by_pid(cfg, buffer.from_id);
+					EnterCriticalSection(&cfg->cs_airplane);
 					if (airplane != NULL && airplane->active)
 						airplane->alive = 1;
+					LeaveCriticalSection(&cfg->cs_airplane);
 					break;
 				}
 				default:

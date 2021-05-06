@@ -1,5 +1,4 @@
 #include "control.h"
-#include <fcntl.h>
 
 #define _sout(p, x, ...) _ftprintf_s(p, _T(x), __VA_ARGS__)
 #define sout(x, ...) _sout(stdout, x, __VA_ARGS__)
@@ -8,9 +7,9 @@ void exit_control(Config *);
 
 int _tmain(int argc, TCHAR **argv, TCHAR **envp) {
 #ifdef UNICODE
-	_setmode(_fileno(stdin), _O_WTEXT);
-	_setmode(_fileno(stdout), _O_WTEXT);
-	_setmode(_fileno(stderr), _O_WTEXT);
+	int i = _setmode(_fileno(stdin), _O_WTEXT);
+	i = _setmode(_fileno(stdout), _O_WTEXT);
+	i = _setmode(_fileno(stderr), _O_WTEXT);
 #endif
 	Config *cfg = malloc(sizeof(Config));
 	if (cfg == NULL)

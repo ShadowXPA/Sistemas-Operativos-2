@@ -1,5 +1,4 @@
 #include "aviao.h"
-#include <io.h>
 
 void exit_aviao(Config* cfg);
 

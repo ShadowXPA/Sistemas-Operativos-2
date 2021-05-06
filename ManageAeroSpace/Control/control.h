@@ -1,6 +1,8 @@
 #ifndef CONTROL_H
 #define CONTROL_H
 
+#include <io.h>
+#include <fcntl.h>
 #include "../Utils/utils.h"
 
 #define MTX_CTR _T("MTXControl")
