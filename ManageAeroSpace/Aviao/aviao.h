@@ -1,6 +1,9 @@
 #include <fcntl.h>
 #include "../Utils/utils.h"
 
+#define DLL_AVIAO _T("SO2_TP_DLL_2021.dll")
+#define DLL_FUNC_MOVE "move"
+
 #define MTX_C _T("AviaoMutexC")
 #define MTX_A _T("AviaoMutexA")
 
@@ -9,8 +12,8 @@ typedef struct cfg {
 	int (*move) (int, int, int, int, int *, int *);
 	Airplane airplane;
 	SharedMemory *memory;				// MapViewOfFile
-	// Plane is flying
-	BOOL flying;
+	BOOL flying;						// Plane is flying
+	HMODULE hdll;
 	// Handles
 	HANDLE obj_map;
 	HANDLE mtx_memory;					// Mutex for shared memory access
