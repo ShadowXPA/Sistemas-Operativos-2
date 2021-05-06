@@ -1,12 +1,13 @@
 #include "aviao.h"
+#include <io.h>
 
 void exit_aviao(Config* cfg);
 
 int _tmain(int argc, TCHAR** argv, TCHAR** envp) {
 #ifdef UNICODE
-	_setmode(_fileno(stdin), _O_WTEXT);
-	_setmode(_fileno(stdout), _O_WTEXT);
-	_setmode(_fileno(stderr), _O_WTEXT);
+	int i = _setmode(_fileno(stdin), _O_WTEXT);
+	i = _setmode(_fileno(stdout), _O_WTEXT);
+	i = _setmode(_fileno(stderr), _O_WTEXT);
 #endif
 	//Read command line args
 	//verify args
