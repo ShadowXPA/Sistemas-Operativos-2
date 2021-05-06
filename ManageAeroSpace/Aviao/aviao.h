@@ -1,3 +1,6 @@
+#ifndef AVIAO_H
+#define AVIAO_H
+
 #include <fcntl.h>
 #include "../Utils/utils.h"
 
@@ -40,3 +43,5 @@ BOOL send_command(Config *, SharedBuffer *);
 DWORD WINAPI read_command(void *param);
 DWORD WINAPI read_shared_memory(void *param);
 DWORD WINAPI send_heartbeat(void *param);
+
+#endif // !AVIAO_H

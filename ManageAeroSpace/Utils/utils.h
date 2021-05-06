@@ -40,6 +40,8 @@ extern "C" {
 #define MAX_NAME 50
 #define MAX_SHARED_BUFFER 20
 
+#define HEARTBEAT_TIMER 3000
+
 #define MAX_AIRPORT 90
 #define MAX_AIRPLANE 100
 #define MAX_PASSENGER (100 * MAX_AIRPLANE)

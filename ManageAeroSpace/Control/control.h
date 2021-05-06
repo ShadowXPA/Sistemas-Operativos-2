@@ -73,6 +73,7 @@ void init_control(Config *);
 DWORD WINAPI read_command(void *);
 DWORD WINAPI read_shared_memory(void *);
 DWORD WINAPI read_named_pipes(void *);
+DWORD WINAPI handle_heartbeat(void *);
 
 void *get_by_id(Config *, unsigned int);
 Airport *get_airport_by_id(Config *, unsigned int);
@@ -91,6 +92,7 @@ BOOL add_airplane(Config *, Airplane *);
 BOOL add_passenger(Config *, Passenger *);
 BOOL remove_airport(Config *, unsigned int);
 BOOL remove_airplane(Config *, unsigned int);
+BOOL _remove_airplane(Config *, Airplane *);
 BOOL remove_passenger(Config *, unsigned int);
 
 void print_airports(Config *);

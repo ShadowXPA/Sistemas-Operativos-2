@@ -146,7 +146,7 @@ void init_control(Config *cfg) {
 	cfg->memory->accepting_planes = TRUE;
 	// init named pipes
 	// init threads:
-	HANDLE thread[3];
+	HANDLE thread[4];
 	// read command
 	thread[0] = CreateThread(NULL, 0, read_command, cfg, 0, NULL);
 	if (thread[0] == NULL)
@@ -159,14 +159,17 @@ void init_control(Config *cfg) {
 	thread[2] = CreateThread(NULL, 0, read_named_pipes, cfg, 0, NULL);
 	if (thread[2] == NULL)
 		return;
-
+	thread[3] = CreateThread(NULL, 0, handle_heartbeat, cfg, 0, NULL);
+	if (thread[3] == NULL)
+		return;
 	// TODO add new thread to set airplane->alive to 0 and "remove" airplanes after if they are still at 0
 
-	WaitForMultipleObjects(3, thread, TRUE, INFINITE);
+	WaitForMultipleObjects(4, thread, TRUE, INFINITE);
 
 	CloseHandle(thread[0]);
 	CloseHandle(thread[1]);
 	CloseHandle(thread[2]);
+	CloseHandle(thread[3]);
 }
 
 DWORD WINAPI read_command(void *param) {
@@ -319,8 +322,8 @@ DWORD WINAPI read_shared_memory(void *param) {
 							if (airplane != NULL && airplane->active) {
 								buffer.cmd_id |= CMD_OK;
 								// set airport to airplane
-								buffer.command.airport = *airport;
 								airplane->airport_end = *airport;
+								buffer.command.airport = *airport;
 							} else {
 								buffer.cmd_id |= CMD_ERROR;
 								cpy(buffer.command.str, "Airplane does not exist!", MAX_NAME);
@@ -340,7 +343,8 @@ DWORD WINAPI read_shared_memory(void *param) {
 				case CMD_HEARTBEAT:
 				{
 					Airplane *airplane = get_airplane_by_pid(cfg, buffer.from_id);
-					airplane->alive = 1;
+					if (airplane != NULL && airplane->active)
+						airplane->alive = 1;
 					break;
 				}
 				default:
@@ -387,6 +391,30 @@ BOOL send_command(Config *cfg, SharedBuffer *sb) {
 DWORD WINAPI read_named_pipes(void *param) {
 	Config *cfg = (Config *) param;
 	WaitForSingleObject(cfg->stop_event, INFINITE);
+	return 0;
+}
+
+DWORD WINAPI handle_heartbeat(void *param) {
+	Config *cfg = (Config *) param;
+	do {
+		EnterCriticalSection(&cfg->cs_airplane);
+		for (unsigned int i = cfg->max_airport + 1; i < (cfg->max_airport + cfg->max_airplane); i++) {
+			Airplane *airplane = get_airplane_by_id(cfg, i);
+			if (airplane != NULL && airplane->active) {
+				airplane->alive = 0;
+			}
+		}
+		LeaveCriticalSection(&cfg->cs_airplane);
+		if (WaitForSingleObject(cfg->stop_event, HEARTBEAT_TIMER) == WAIT_TIMEOUT) {
+			EnterCriticalSection(&cfg->cs_airplane);
+			for (unsigned int i = cfg->max_airport + 1; i < (cfg->max_airport + cfg->max_airplane); i++) {
+				if (_remove_airplane(cfg, get_airplane_by_id(cfg, i))) {
+					sout("[Heartbeat] Airplane (ID: %u) has been removed!\n", i);
+				}
+			}
+			LeaveCriticalSection(&cfg->cs_airplane);
+		}
+	} while (!cfg->die);
 	return 0;
 }
 
@@ -590,6 +618,37 @@ BOOL remove_airport(Config *cfg, unsigned int id) {
 }
 
 BOOL remove_airplane(Config *cfg, unsigned int pid) {
+	return _remove_airplane(cfg, get_airplane_by_pid(cfg, pid));
+
+	//Airplane *airplane = get_airplane_by_pid(cfg, pid);
+	//if (airplane != NULL && airplane->active) {
+	//	WaitForSingleObject(cfg->mtx_memory, INFINITE);
+	//	if (cfg->memory->map[airplane->coordinates.x][airplane->coordinates.y] == airplane->pid) {
+	//		cfg->memory->map[airplane->coordinates.x][airplane->coordinates.y] = 0;
+	//	}
+	//	ReleaseMutex(cfg->mtx_memory);
+	//	unsigned int tmp_id = airplane->id;
+	//	memset(airplane, 0, sizeof(Airplane));
+	//	airplane->id = tmp_id;
+	//	return TRUE;
+	//}
+
+	//return FALSE;
+}
+
+BOOL _remove_airplane(Config *cfg, Airplane *airplane) {
+	if (airplane != NULL && (airplane->active && !airplane->alive)) {
+		WaitForSingleObject(cfg->mtx_memory, INFINITE);
+		if (cfg->memory->map[airplane->coordinates.x][airplane->coordinates.y] == airplane->pid) {
+			cfg->memory->map[airplane->coordinates.x][airplane->coordinates.y] = 0;
+		}
+		ReleaseMutex(cfg->mtx_memory);
+		unsigned int tmp_id = airplane->id;
+		memset(airplane, 0, sizeof(Airplane));
+		airplane->id = tmp_id;
+		return TRUE;
+	}
+
 	return FALSE;
 }
 
