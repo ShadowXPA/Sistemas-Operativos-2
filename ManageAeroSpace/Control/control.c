@@ -21,15 +21,10 @@ BOOL init_config(Config *cfg) {
 	cfg->mtx_memory = CreateMutex(NULL, FALSE, MTX_MEMORY);
 	if (cfg->mtx_memory == NULL)
 		return FALSE;
-	cfg->mtx_airport = CreateMutex(NULL, FALSE, MTX_AIRPORT);
-	if (cfg->mtx_airport == NULL)
-		return FALSE;
-	cfg->mtx_airplane = CreateMutex(NULL, FALSE, MTX_AIRPLANE);
-	if (cfg->mtx_airplane == NULL)
-		return FALSE;
-	cfg->mtx_passenger = CreateMutex(NULL, FALSE, MTX_PASSENGER);
-	if (cfg->mtx_passenger == NULL)
-		return FALSE;
+
+	InitializeCriticalSection(&cfg->cs_airport);
+	InitializeCriticalSection(&cfg->cs_airplane);
+	InitializeCriticalSection(&cfg->cs_passenger);
 
 	cfg->max_airport = MAX_AIRPORT;
 	cfg->max_airplane = MAX_AIRPLANE;
@@ -123,9 +118,9 @@ void end_config(Config *cfg) {
 	ReleaseMutex(cfg->mtx_instance);
 	CloseHandle(cfg->mtx_instance);
 	CloseHandle(cfg->mtx_memory);
-	CloseHandle(cfg->mtx_airport);
-	CloseHandle(cfg->mtx_airplane);
-	CloseHandle(cfg->mtx_passenger);
+	DeleteCriticalSection(&cfg->cs_airport);
+	DeleteCriticalSection(&cfg->cs_airport);
+	DeleteCriticalSection(&cfg->cs_airport);
 	CloseHandle(cfg->sem_emptyC);
 	CloseHandle(cfg->sem_emptyA);
 	CloseHandle(cfg->sem_itemC);
@@ -192,24 +187,24 @@ DWORD WINAPI read_command(void *param) {
 			sin(DEFAULT_CIN_BUFFER, buffer, MAX_NAME);
 			airport.coordinates.y = (_tstoi(buffer) - 1);
 
-			WaitForSingleObject(cfg->mtx_airport, INFINITE);
+			EnterCriticalSection(&cfg->cs_airport);
 			if (add_airport(cfg, &airport)) {
 				sout("Airport added!\n");
 			} else {
 				sout("Airport not added!\n");
 			}
-			ReleaseMutex(cfg->mtx_airport);
+			LeaveCriticalSection(&cfg->cs_airport);
 		} else if (icmp(buffer, "remove") == 0) {
 			sout("Input airport ID:\n > ");
 			sin(DEFAULT_CIN_BUFFER, buffer, MAX_NAME);
 
-			WaitForSingleObject(cfg->mtx_airport, INFINITE);
+			EnterCriticalSection(&cfg->cs_airport);
 			if (remove_airport(cfg, _tstoi(buffer))) {
 				sout("Airport removed!\n");
 			} else {
 				sout("Airport not removed!\n");
 			}
-			ReleaseMutex(cfg->mtx_airport);
+			LeaveCriticalSection(&cfg->cs_airport);
 		} else if (icmp(buffer, "toggle") == 0) {
 			// toggle plane acceptance
 			WaitForSingleObject(cfg->mtx_memory, INFINITE);
@@ -222,29 +217,29 @@ DWORD WINAPI read_command(void *param) {
 			sout("\n");
 			if (icmp(buffer, "airport") == 0) {
 				// list airports
-				WaitForSingleObject(cfg->mtx_airport, INFINITE);
+				EnterCriticalSection(&cfg->cs_airport);
 				print_airports(cfg);
-				ReleaseMutex(cfg->mtx_airport);
+				LeaveCriticalSection(&cfg->cs_airport);
 			} else if (icmp(buffer, "airplane") == 0) {
 				// list airplanes
-				WaitForSingleObject(cfg->mtx_airplane, INFINITE);
+				EnterCriticalSection(&cfg->cs_airplane);
 				print_airplane(cfg);
-				ReleaseMutex(cfg->mtx_airplane);
+				LeaveCriticalSection(&cfg->cs_airplane);
 			} else if (icmp(buffer, "passenger") == 0) {
 				// list passengers
-				WaitForSingleObject(cfg->mtx_passenger, INFINITE);
+				EnterCriticalSection(&cfg->cs_passenger);
 				print_passenger(cfg);
-				ReleaseMutex(cfg->mtx_passenger);
+				LeaveCriticalSection(&cfg->cs_passenger);
 			} else if (icmp(buffer, "all") == 0) {
-				WaitForSingleObject(cfg->mtx_airport, INFINITE);
-				WaitForSingleObject(cfg->mtx_airplane, INFINITE);
-				WaitForSingleObject(cfg->mtx_passenger, INFINITE);
+				EnterCriticalSection(&cfg->cs_airport);
+				EnterCriticalSection(&cfg->cs_airplane);
+				EnterCriticalSection(&cfg->cs_passenger);
 				print_airports(cfg);
 				print_airplane(cfg);
 				print_passenger(cfg);
-				ReleaseMutex(cfg->mtx_passenger);
-				ReleaseMutex(cfg->mtx_airplane);
-				ReleaseMutex(cfg->mtx_airport);
+				LeaveCriticalSection(&cfg->cs_passenger);
+				LeaveCriticalSection(&cfg->cs_airplane);
+				LeaveCriticalSection(&cfg->cs_airport);
 			}
 		} else if (icmp(buffer, "help") == 0) {
 			// show all commands
@@ -289,6 +284,8 @@ DWORD WINAPI read_shared_memory(void *param) {
 			switch (buffer.cmd_id) {
 				case CMD_HELLO:
 				{
+					EnterCriticalSection(&cfg->cs_airport);
+					EnterCriticalSection(&cfg->cs_airplane);
 					if (add_airplane(cfg, &buffer.command.airplane)) {
 						buffer.cmd_id |= CMD_OK;
 						sout("A new airplane has been registered!\n");
@@ -302,23 +299,39 @@ DWORD WINAPI read_shared_memory(void *param) {
 					buffer.to_id = buffer.from_id;
 					buffer.from_id = 0;
 					send_command(cfg, &buffer);
+					LeaveCriticalSection(&cfg->cs_airplane);
+					LeaveCriticalSection(&cfg->cs_airport);
 					break;
 				}
 				case CMD_SEND_DESTINATION:
 				{
+					EnterCriticalSection(&cfg->cs_airport);
+					EnterCriticalSection(&cfg->cs_airplane);
 					Airport *airport = get_airport_by_name(cfg, buffer.command.airport.name);
 					if (airport == NULL) {
 						buffer.cmd_id |= CMD_ERROR;
 						cpy(buffer.command.str, "Airport does not exist!", MAX_NAME);
 					} else {
-						buffer.cmd_id |= CMD_OK;
-						// TODO check airport if same
-						// set airport to airplane
-						buffer.command.airport = *airport;
+						if (airport->id == buffer.command.airport.id) {
+							buffer.cmd_id |= CMD_ERROR;
+							cpy(buffer.command.str, "Can not add departure as destination!", MAX_NAME);
+						} else {
+							Airplane *airplane = get_airplane_by_pid(cfg, buffer.from_id);
+							if (airplane != NULL) {
+								buffer.cmd_id |= CMD_OK;
+								// set airport to airplane
+								buffer.command.airport = *airport;
+								airplane->airport_end = *airport;
+							} else {
+								buffer.cmd_id |= CMD_ERROR;
+							}
+						}
 					}
 					buffer.to_id = buffer.from_id;
 					buffer.from_id = 0;
 					send_command(cfg, &buffer);
+					LeaveCriticalSection(&cfg->cs_airplane);
+					LeaveCriticalSection(&cfg->cs_airport);
 					break;
 				}
 				case CMD_HEARTBEAT:

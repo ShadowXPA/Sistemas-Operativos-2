@@ -30,12 +30,12 @@ typedef struct cfg {
 	Airplane *airplanes;				// List of airplanes
 	Passenger *passengers;				// List of passengers
 	// Handles
+	CRITICAL_SECTION cs_airport;		// Mutex for airport access
+	CRITICAL_SECTION cs_airplane;		// Mutex for airplane access
+	CRITICAL_SECTION cs_passenger;		// Mutex for passenger access
 	HANDLE obj_map;
 	HANDLE mtx_instance;				// Mutex used to verify various instances of the same program
 	HANDLE mtx_memory;					// Mutex for shared memory access
-	HANDLE mtx_airport;					// Mutex for airport access
-	HANDLE mtx_airplane;				// Mutex for airplane access
-	HANDLE mtx_passenger;				// Mutex for passenger access
 	HANDLE stop_event;					// Kill event (Stops the whole system)
 	/*
 		// To send an item through circular a buffer use:
