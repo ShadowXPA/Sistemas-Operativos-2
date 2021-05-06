@@ -197,7 +197,8 @@ DWORD WINAPI read_shared_memory(void *param) {
 					case(CMD_BOARD | CMD_OK):
 					{
 						//receive number of passengers
-
+						cfg->airplane.capacity = buffer.command.number;
+						sout("Number of passangers in the plane: %d", cfg->airplane.capacity);
 						break;
 					}
 					case(CMD_BOARD | CMD_ERROR):
