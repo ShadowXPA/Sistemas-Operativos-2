@@ -71,6 +71,8 @@ BOOL init_config(Config *cfg) {
 		}
 	}
 
+	cfg->memory->max_airport = cfg->max_airport;
+
 	cfg->airports = calloc(cfg->max_airport, sizeof(Airport));
 	cfg->airplanes = calloc(cfg->max_airplane, sizeof(Airplane));
 	cfg->passengers = calloc(cfg->max_passenger, sizeof(Passenger));
@@ -308,24 +310,25 @@ DWORD WINAPI read_shared_memory(void *param) {
 					EnterCriticalSection(&cfg->cs_airport);
 					EnterCriticalSection(&cfg->cs_airplane);
 					Airport *airport = get_airport_by_name(cfg, buffer.command.airport.name);
-					if (airport == NULL) {
-						buffer.cmd_id |= CMD_ERROR;
-						cpy(buffer.command.str, "Airport does not exist!", MAX_NAME);
-					} else {
+					if (airport != NULL && airport->active) {
 						if (airport->id == buffer.command.airport.id) {
 							buffer.cmd_id |= CMD_ERROR;
 							cpy(buffer.command.str, "Can not add departure as destination!", MAX_NAME);
 						} else {
 							Airplane *airplane = get_airplane_by_pid(cfg, buffer.from_id);
-							if (airplane != NULL) {
+							if (airplane != NULL && airplane->active) {
 								buffer.cmd_id |= CMD_OK;
 								// set airport to airplane
 								buffer.command.airport = *airport;
 								airplane->airport_end = *airport;
 							} else {
 								buffer.cmd_id |= CMD_ERROR;
+								cpy(buffer.command.str, "Airplane does not exist!", MAX_NAME);
 							}
 						}
+					} else {
+						buffer.cmd_id |= CMD_ERROR;
+						cpy(buffer.command.str, "Airport does not exist!", MAX_NAME);
 					}
 					buffer.to_id = buffer.from_id;
 					buffer.from_id = 0;

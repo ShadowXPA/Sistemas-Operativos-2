@@ -17,7 +17,7 @@ extern "C" {
 #include <Windows.h>
 #include <string.h>
 
-	DLL_API void clear_input_stream(const FILE *const);
+	DLL_API void clear_input_stream(FILE *);
 
 #define _sout(p, x, ...) _ftprintf_s(p, _T(x), __VA_ARGS__)
 #define sout(x, ...) _sout(stdout, x, __VA_ARGS__)
@@ -118,6 +118,7 @@ extern "C" {
 	} SharedBuffer;
 
 	DLL_API typedef struct sharedmemory {
+		unsigned int max_airport;			// Maximum number of airports
 		unsigned int map[MAX_MAP][MAX_MAP];	// IDs (0 = empty, 1 ~ 90 = airports, 91 ~ 190 = airplanes)
 		BOOL accepting_planes;
 		int inC, outC;

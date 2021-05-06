@@ -1,6 +1,6 @@
 #include "utils.h"
 
-void clear_input_stream(const FILE *const p) {
+void clear_input_stream(FILE * p) {
 	int ch;
 	while ((ch = _gettc(p)) != '\n' && ch != EOF);
 }
