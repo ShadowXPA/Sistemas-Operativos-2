@@ -3,6 +3,14 @@
 BOOL init_config(Config *cfg) {
 	memset(cfg, 0, sizeof(Config));
 
+	cfg->hdll = LoadLibrary(DLL_AVIAO);
+	if (cfg->hdll == NULL)
+		return FALSE;
+
+	cfg->move = (int (*) (int, int, int, int, int *, int *)) GetProcAddress(cfg->hdll, DLL_FUNC_MOVE);
+	if (cfg->move == NULL)
+		return FALSE;
+
 	cfg->mtx_memory = OpenMutex(MUTEX_ALL_ACCESS, FALSE, MTX_MEMORY);
 	if (cfg->mtx_memory == NULL)
 		return FALSE;
@@ -31,6 +39,7 @@ BOOL init_config(Config *cfg) {
 }
 
 void end_config(Config *cfg) {
+	FreeLibrary(cfg->hdll);
 	UnmapViewOfFile(cfg->memory);
 	CloseHandle(cfg->obj_map);
 	CloseHandle(cfg->mtx_memory);
