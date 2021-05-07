@@ -228,10 +228,11 @@ DWORD WINAPI read_shared_memory(void *param) {
 						sout("Error: '%s'\n", buffer.command.str);
 						break;
 					}
-					case (CMD_FLYING | CMD_OK):
+					case (CMD_LANDED | CMD_OK):
 					{
-
-
+						sout("Received landing clearance from control.\n");
+						cfg->flying = FALSE;
+						cfg->airplane = buffer.command.airplane;
 						break;
 					}
 					case (CMD_FLYING | CMD_ERROR):
@@ -358,9 +359,9 @@ DWORD WINAPI flying(void *param) {
 				cfg->airplane.coordinates = new_coord;
 				// Send landed command
 				sb.cmd_id = CMD_LANDED;
-				sb.command.coordinates = cfg->airplane.coordinates;
+				sb.command.airplane = cfg->airplane;
 				send_command(cfg, &sb);
-				cfg->flying = FALSE;
+				moved = -1;
 			}
 		} else if (moved == 1) {
 			// Still flying
@@ -384,14 +385,14 @@ DWORD WINAPI flying(void *param) {
 				}
 				ReleaseMutex(cfg->mtx_memory);
 				// Send flying command
-				sb.command.coordinates = cfg->airplane.coordinates;
+				sb.command.airplane = cfg->airplane;
 				send_command(cfg, &sb);
 			}
 		} else {
 			// Error
 			sout("An error occured while moving...\n");
 		}
-	} while (!cfg->die && cfg->flying && WaitForMultipleObjects(2, handles, FALSE, 1000) == WAIT_TIMEOUT);
+	} while (!cfg->die && (moved != -1) && WaitForMultipleObjects(2, handles, FALSE, 1000) == WAIT_TIMEOUT);
 
 	return 0;
 }
