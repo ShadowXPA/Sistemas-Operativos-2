@@ -222,7 +222,7 @@ DWORD WINAPI read_shared_memory(void *param) {
 						HANDLE thread = CreateThread(NULL, 0, flying, cfg, 0, NULL);
 						break;
 					}
-					case (CMD_FLYING | CMD_ERROR):
+					case (CMD_LIFT_OFF | CMD_ERROR):
 					{
 						//error saying to the control that the trip is starting
 						sout("Error: '%s'\n", buffer.command.str);
