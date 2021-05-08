@@ -68,6 +68,7 @@ extern "C" {
 #define CMD_OK					0b0000000100000000
 #define CMD_HEARTBEAT			0b0000001000000000
 #define CMD_ERROR				0b0000010000000000
+#define CMD_SHUTDOWN			0b0000100000000000
 
 	DLL_API typedef struct point {
 		unsigned int x, y;

@@ -158,6 +158,7 @@ void init_control(Config *cfg) {
 	thread[2] = CreateThread(NULL, 0, read_named_pipes, cfg, 0, NULL);
 	if (thread[2] == NULL)
 		return;
+	// handle heartbeat from airplanes
 	thread[3] = CreateThread(NULL, 0, handle_heartbeat, cfg, 0, NULL);
 	if (thread[3] == NULL)
 		return;
@@ -213,7 +214,7 @@ DWORD WINAPI read_command(void *param) {
 			WaitForSingleObject(cfg->mtx_memory, INFINITE);
 			cfg->memory->accepting_planes = !cfg->memory->accepting_planes;
 			ReleaseMutex(cfg->mtx_memory);
-			sout("%s", (cfg->memory->accepting_planes == TRUE ? _T("Accepting planes.\n") : _T("Not accepting planes.\n")));
+			sout("%s", (cfg->memory->accepting_planes ? _T("Accepting planes.\n") : _T("Not accepting planes.\n")));
 		} else if (icmp(buffer, "list") == 0) {
 			sout("What do you want to list:\n > ");
 			sin(DEFAULT_CIN_BUFFER, buffer, MAX_NAME);
@@ -244,6 +245,27 @@ DWORD WINAPI read_command(void *param) {
 				LeaveCriticalSection(&cfg->cs_airplane);
 				LeaveCriticalSection(&cfg->cs_airport);
 			}
+		} else if (icmp(buffer, "kick") == 0) {
+			sout("Input airplane ID:\n > ");
+			sin(DEFAULT_CIN_BUFFER, buffer, MAX_NAME);
+			int id = _tstoi(buffer);
+
+			EnterCriticalSection(&cfg->cs_airplane);
+			Airplane *airplane = get_airplane_by_id(cfg, id);
+			airplane->alive = 0;
+			int pid = airplane->pid;
+			BOOL removed = _remove_airplane(cfg, airplane);
+			LeaveCriticalSection(&cfg->cs_airplane);
+			if (removed) {
+				SharedBuffer sb;
+				sb.cmd_id = CMD_SHUTDOWN;
+				sb.to_id = pid;
+				sb.from_id = 0;
+				send_command(cfg, &sb);
+				sout("Airplane (ID: %u, PID: %u) removed!\n", id, pid);
+			} else {
+				sout("Airplane (ID: %u) not removed!\n", id);
+			}
 		} else if (icmp(buffer, "help") == 0) {
 			// show all commands
 			sout("help   -> Shows this\n");
@@ -272,17 +294,15 @@ DWORD WINAPI read_shared_memory(void *param) {
 	Config *cfg = (Config *) param;
 	SharedBuffer buffer;
 	while (!cfg->die) {
-		// Handle buffer
-		// ...
-		// Receive new airplane
-		// Airplane is accepting passengers
-		// Airplane is starting lift off
-		// Airplane is moving (Coordinates)
-		// Airplane is de-touring or waiting (Avoid collision)
-		// Airplane has landed
-		// Airplane has crashed or pilot retired
-		// Airplane sends heartbeat
-		// Send destination coordinates
+		// Receive new airplane										// DONE
+		// Airplane is accepting passengers							// TODO
+		// Airplane is starting lift off							// DONE
+		// Airplane is moving (Coordinates)							// DONE
+		// Airplane is de-touring or waiting (Avoid collision)		// DONE
+		// Airplane has landed										// DONE
+		// Airplane has crashed or pilot retired					// TODO
+		// Airplane sends heartbeat									// DONE
+		// Send destination coordinates								// DONE
 		if (receive_command(cfg, &buffer)) {
 			switch (buffer.cmd_id) {
 				case CMD_HELLO:
@@ -399,10 +419,29 @@ DWORD WINAPI read_shared_memory(void *param) {
 					LeaveCriticalSection(&cfg->cs_airplane);
 					break;
 				}
+				case CMD_CRASHED_RETIRED:
+				{
+					// Airplane crashed (1) or retired (0)
+					EnterCriticalSection(&cfg->cs_airplane);
+					Airplane *airplane = get_airplane_by_pid(cfg, buffer.from_id);
+					if (buffer.command.number) {
+						// Airplane was flying therefore it crashed
+						// Send crasshed message to passengers on the airplane
+						sout("Airplane '%s' (ID: %u, PID: %u) has crashed at position (x: %u, y: %u)!\n",
+							airplane->name, airplane->id, airplane->pid, airplane->coordinates.x, airplane->coordinates.y);
+					} else {
+						// Airplane was stationed at an airport therefore the pilot retired
+						sout("Pilot has retired.\nAirplane '%s' (ID: %u, PID: %u)\n", airplane->name, airplane->id, airplane->pid);
+					}
+					airplane->alive = 0;
+					_remove_airplane(cfg, airplane);
+					LeaveCriticalSection(&cfg->cs_airplane);
+					break;
+				}
 				case CMD_HEARTBEAT:
 				{
-					Airplane *airplane = get_airplane_by_pid(cfg, buffer.from_id);
 					EnterCriticalSection(&cfg->cs_airplane);
+					Airplane *airplane = get_airplane_by_pid(cfg, buffer.from_id);
 					if (airplane != NULL && airplane->active)
 						airplane->alive = 1;
 					LeaveCriticalSection(&cfg->cs_airplane);
