@@ -274,6 +274,7 @@ DWORD WINAPI read_command(void *param) {
 			sout("toggle -> Toggles between accepting airplanes or not\n");
 			sout("list   -> Prints a list of airports, airplanes, passengers or all\n");
 			sout("cfg    -> View config\n");
+			sout("kick   -> Kicks an airplane\n");
 			sout("exit   -> Stops the whole system\n");
 		} else if (icmp(buffer, "exit") == 0) {
 			sout("Stopping system...\n");
@@ -300,7 +301,7 @@ DWORD WINAPI read_shared_memory(void *param) {
 		// Airplane is moving (Coordinates)							// DONE
 		// Airplane is de-touring or waiting (Avoid collision)		// DONE
 		// Airplane has landed										// DONE
-		// Airplane has crashed or pilot retired					// TODO
+		// Airplane has crashed or pilot retired					// DONE
 		// Airplane sends heartbeat									// DONE
 		// Send destination coordinates								// DONE
 		if (receive_command(cfg, &buffer)) {
@@ -426,9 +427,10 @@ DWORD WINAPI read_shared_memory(void *param) {
 					Airplane *airplane = get_airplane_by_pid(cfg, buffer.from_id);
 					if (buffer.command.number) {
 						// Airplane was flying therefore it crashed
-						// Send crasshed message to passengers on the airplane
-						sout("Airplane '%s' (ID: %u, PID: %u) has crashed at position (x: %u, y: %u)!\n",
-							airplane->name, airplane->id, airplane->pid, airplane->coordinates.x, airplane->coordinates.y);
+						sout("Airplane '%s' (ID: %u, PID: %u) has crashed on its way to '%s' (x: %u, y: %u) at position (x: %u, y: %u)!\n",
+							airplane->name, airplane->id, airplane->pid, airplane->airport_end.name, airplane->airport_end.coordinates.x,
+							airplane->airport_end.coordinates.y, airplane->coordinates.x, airplane->coordinates.y);
+						// TODO Send crasshed message to passengers on the airplane
 					} else {
 						// Airplane was stationed at an airport therefore the pilot retired
 						sout("Pilot has retired.\nAirplane '%s' (ID: %u, PID: %u)\n", airplane->name, airplane->id, airplane->pid);
@@ -436,6 +438,11 @@ DWORD WINAPI read_shared_memory(void *param) {
 					airplane->alive = 0;
 					_remove_airplane(cfg, airplane);
 					LeaveCriticalSection(&cfg->cs_airplane);
+					break;
+				}
+				case CMD_BOARD:
+				{
+					// TODO
 					break;
 				}
 				case CMD_HEARTBEAT:
@@ -609,6 +616,21 @@ Airport *get_airport_by_name(Config *cfg, const TCHAR *name) {
 	return NULL;
 }
 
+Airport *get_airport_by_name_or_radius(Config *cfg, const TCHAR *name, const int radius, const Point coord) {
+	for (unsigned int i = 1; i <= cfg->max_airport; i++) {
+		Airport *airport = get_airport_by_id(cfg, i);
+		Point p;
+		p.x = (unsigned int) abs(airport->coordinates.x - coord.x);
+		p.y = (unsigned int) abs(airport->coordinates.y - coord.y);
+		if (airport != NULL && airport->active && (_icmp(airport->name, name) == 0 ||
+			((p.x <= radius) && (p.y <= radius)))) {
+			return airport;
+		}
+	}
+
+	return NULL;
+}
+
 Airplane *get_airplane_by_name(Config *cfg, const TCHAR *name) {
 	for (unsigned int i = (cfg->max_airport + 1); i <= (cfg->max_airport + cfg->max_airplane); i++) {
 		Airplane *airplane = get_airplane_by_id(cfg, i);
@@ -636,12 +658,14 @@ BOOL add_airport(Config *cfg, Airport *airport) {
 	// check if maximum has been reached
 	if (tmp == NULL)
 		return FALSE;
-	// check if name already exists
-	if (get_airport_by_name(cfg, airport->name) != NULL)
-		return FALSE;
 	// check if coordinates are valid
 	if (airport->coordinates.x >= MAX_MAP || airport->coordinates.y >= MAX_MAP)
 		return FALSE;
+	// check if name already exists or if any airport is too close to the airport
+	if (get_airport_by_name_or_radius(cfg, airport->name, AIRPORT_RADIUS, airport->coordinates) != NULL)
+		return FALSE;
+
+	// Check map
 	WaitForSingleObject(cfg->mtx_memory, INFINITE);
 	unsigned int map_id = cfg->memory->map[airport->coordinates.x][airport->coordinates.y];
 	if (map_id != 0) {
@@ -654,6 +678,8 @@ BOOL add_airport(Config *cfg, Airport *airport) {
 	tmp->active = 1;
 	tmp->coordinates = airport->coordinates;
 	_cpy(tmp->name, airport->name, MAX_NAME);
+
+	*airport = *tmp;
 
 	return TRUE;
 }
@@ -700,7 +726,9 @@ BOOL add_passenger(Config *cfg, Passenger *passenger) {
 	if (get_passenger_by_name(cfg, passenger->name) != NULL)
 		return FALSE;
 
-	return FALSE;
+	*passenger = *tmp;
+
+	return TRUE;
 }
 
 BOOL remove_airport(Config *cfg, unsigned int id) {
