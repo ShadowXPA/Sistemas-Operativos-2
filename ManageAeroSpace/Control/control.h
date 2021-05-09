@@ -88,7 +88,7 @@ Airport *get_available_airport(Config *);
 Airplane *get_available_airplane(Config *);
 Passenger *get_available_passenger(Config *);
 Airport *get_airport_by_name(Config *, const TCHAR *);
-Airport *get_airport_by_name_or_radius(Config *, const TCHAR *, const int, const Point);
+Airport *get_airport_by_name_or_radius(Config *, const TCHAR *, const Point, const unsigned int radius);
 Airplane *get_airplane_by_name(Config *, const TCHAR *);
 Passenger *get_passenger_by_name(Config *, const TCHAR *);
 

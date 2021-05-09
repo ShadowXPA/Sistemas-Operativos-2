@@ -616,7 +616,7 @@ Airport *get_airport_by_name(Config *cfg, const TCHAR *name) {
 	return NULL;
 }
 
-Airport *get_airport_by_name_or_radius(Config *cfg, const TCHAR *name, const int radius, const Point coord) {
+Airport *get_airport_by_name_or_radius(Config *cfg, const TCHAR *name, const Point coord, const unsigned int radius) {
 	for (unsigned int i = 1; i <= cfg->max_airport; i++) {
 		Airport *airport = get_airport_by_id(cfg, i);
 		Point p;
@@ -662,7 +662,7 @@ BOOL add_airport(Config *cfg, Airport *airport) {
 	if (airport->coordinates.x >= MAX_MAP || airport->coordinates.y >= MAX_MAP)
 		return FALSE;
 	// check if name already exists or if any airport is too close to the airport
-	if (get_airport_by_name_or_radius(cfg, airport->name, AIRPORT_RADIUS, airport->coordinates) != NULL)
+	if (get_airport_by_name_or_radius(cfg, airport->name, airport->coordinates, AIRPORT_RADIUS) != NULL)
 		return FALSE;
 
 	// Check map
