@@ -1,7 +1,7 @@
 #include "control.h"
 
-#define _sout(p, x, ...) _ftprintf_s(p, _T(x), __VA_ARGS__)
-#define sout(x, ...) _sout(stdout, x, __VA_ARGS__)
+#define _cout(p, x, ...) _ftprintf_s(p, _T(x), __VA_ARGS__)
+#define cout(x, ...) _cout(stdout, x, __VA_ARGS__)
 
 void exit_control(Config *);
 

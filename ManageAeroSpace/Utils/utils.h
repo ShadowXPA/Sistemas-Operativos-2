@@ -19,13 +19,13 @@ extern "C" {
 
 	DLL_API void clear_input_stream(FILE *);
 
-#define _sout(p, x, ...) _ftprintf_s(p, _T(x), __VA_ARGS__)
-#define sout(x, ...) _sout(stdout, x, __VA_ARGS__)
-#define _sin(p, x, ...) {\
+#define _cout(p, x, ...) _ftprintf_s(p, _T(x), __VA_ARGS__)
+#define cout(x, ...) _cout(stdout, x, __VA_ARGS__)
+#define _cin(p, x, ...) {\
 							_ftscanf_s(p, _T(x), __VA_ARGS__);\
 							clear_input_stream(p);\
 						}
-#define sin(x, ...) _sin(stdin, x, __VA_ARGS__)
+#define cin(x, ...) _cin(stdin, x, __VA_ARGS__)
 #define _cmp(str1, str2) _tcscmp(str1, str2)
 #define cmp(str1, str2) _cmp(str1, _T(str2))
 #define _icmp(str1, str2) _tcsicmp(str1, str2)
@@ -68,6 +68,7 @@ extern "C" {
 #define CMD_OK					0b0000000100000000
 #define CMD_HEARTBEAT			0b0000001000000000
 #define CMD_ERROR				0b0000010000000000
+#define CMD_SHUTDOWN			0b0000100000000000
 
 	DLL_API typedef struct point {
 		unsigned int x, y;

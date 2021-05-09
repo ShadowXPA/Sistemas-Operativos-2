@@ -69,13 +69,14 @@ void init_aviao(Config *cfg) {
 	WaitForSingleObject(cfg->mtx_memory, INFINITE);
 	if (!cfg->memory->accepting_planes) {
 		ReleaseMutex(cfg->mtx_memory);
+		cout("Control is not accepting airplanes at this moment.\n");
 		return;
 	}
 	ReleaseMutex(cfg->mtx_memory);
 
 	//name of the plane
-	sout("Input airplane name:\n > ");
-	sin(DEFAULT_CIN_BUFFER, buffer, MAX_NAME);
+	cout("Input airplane name:\n > ");
+	cin(DEFAULT_CIN_BUFFER, buffer, MAX_NAME);
 	_cpy(cfg->airplane.name, buffer, MAX_NAME);
 
 	//send hello!, name, capacity, velocity and initial airport
@@ -84,19 +85,19 @@ void init_aviao(Config *cfg) {
 	sb.command.airplane = cfg->airplane;
 	BOOL bool = send_command(cfg, &sb);
 	if (!bool) {
-		sout("The controller is down!");
+		cout("The controller is down!");
 		return;
 	}
 	//receive coordinates
 	receive_command(cfg, &sb);
 	if (sb.cmd_id == (CMD_HELLO | CMD_OK)) {
 		cfg->airplane = sb.command.airplane;
-		sout("Airplane registered!\n");
-		sout("Name: '%s' (ID: %u, PID: %u)\nVelocity: %d\nCapacity: %d\nMax. Capacity: %d\nCoordinates: (x: %u, y: %u)\nDeparture: '%s' (ID: %u)\nDestination: '%s' (ID: %u)\n\n",
+		cout("Airplane registered!\n");
+		cout("Name: '%s' (ID: %u, PID: %u)\nVelocity: %d\nCapacity: %d\nMax. Capacity: %d\nCoordinates: (x: %u, y: %u)\nDeparture: '%s' (ID: %u)\nDestination: '%s' (ID: %u)\n\n",
 			cfg->airplane.name, cfg->airplane.id, cfg->airplane.pid, cfg->airplane.velocity, cfg->airplane.capacity, cfg->airplane.max_capacity,
 			cfg->airplane.coordinates.x, cfg->airplane.coordinates.y, cfg->airplane.airport_start.name, cfg->airplane.airport_start.id, cfg->airplane.airport_end.name, cfg->airplane.airport_end.id);
 	} else {
-		sout("Airplane not registered!\nError: '%s'\n", sb.command.str);
+		cout("Airplane not registered!\nError: '%s'\n", sb.command.str);
 		return;
 	}
 	// init threads:
@@ -124,56 +125,74 @@ DWORD WINAPI read_command(void *param) {
 	TCHAR buffer[MAX_NAME] = { 0 };
 	SharedBuffer sb;
 	do {
-		sout("Input command:\n > ");
-		sin(DEFAULT_CIN_BUFFER, buffer, MAX_NAME);
+		memset(buffer, 0, MAX_NAME * sizeof(TCHAR));
+		cout("Input command:\n > ");
+		cin(DEFAULT_CIN_BUFFER, buffer, MAX_NAME);
 		//define destination
 		//board passengers
 		//start trip
 		//exit
-		if (icmp(buffer, "exit") == 0) {
-			cfg->die = TRUE;
-			sout("Stopping airplane...\n");
-		}
-
-		if (!cfg->flying) {
-			if (icmp(buffer, "destination") == 0) {
-				// define destination
-				Airport airport;
-				sout("Input airport name:\n > ");
-				sin(DEFAULT_CIN_BUFFER, buffer, MAX_NAME);
-				_cpy(airport.name, buffer, MAX_NAME);
-				//send airport to control
+		if (!cfg->die) {
+			if (icmp(buffer, "exit") == 0) {
+				cfg->die = TRUE;
+				cout("Stopping airplane...\n");
+				sb.cmd_id = CMD_CRASHED_RETIRED;
 				sb.from_id = cfg->airplane.pid;
-				sb.cmd_id = CMD_SEND_DESTINATION;
-				sb.command.airport = airport;
-				send_command(cfg, &sb);
-			} else if (icmp(buffer, "board") == 0) {
-				//send confirmation to controler
-				sb.from_id = cfg->airplane.pid;
-				sb.cmd_id = CMD_BOARD;
-				send_command(cfg, &sb);
-			} else if (icmp(buffer, "start") == 0) {
-				//send confirmation to controler that I want to start the trip
-				sb.from_id = cfg->airplane.pid;
-				sb.cmd_id = CMD_LIFT_OFF;
+				sb.command.number = cfg->flying;
 				send_command(cfg, &sb);
 			} else if (icmp(buffer, "help") == 0) {
 				// show all commands
-				sout("help        -> Shows this\n");
-				sout("destination -> Define trip destination\n");
-				sout("board       -> Board passengers in the airplane\n");
-				sout("start       -> Start the trip\n");
-				sout("exit        -> Stops the airplane\n");
+				cout("help        -> Shows this\n");
+				cout("destination -> Define trip destination\n");
+				cout("board       -> Board passengers in the airplane\n");
+				cout("start       -> Start the trip\n");
+				cout("list        -> Lists information about the airplane.\n");
+				cout("exit        -> Stops the airplane\n");
 			} else if (icmp(buffer, "list") == 0) {
-				sout("Name: '%s' (ID: %u, PID: %u)\nVelocity: %d\nCapacity: %d\nMax. Capacity: %d\nCoordinates: (x: %u, y: %u)\nDeparture: '%s' (ID: %u)\nDestination: '%s' (ID: %u)\n\n",
+				cout("Name: '%s' (ID: %u, PID: %u)\nVelocity: %d\nCapacity: %d\nMax. Capacity: %d\nCoordinates: (x: %u, y: %u)\nDeparture: '%s' (ID: %u) at (x: %u, y: %u)\nDestination: '%s' (ID: %u) at (x: %u, y: %u)\n\n",
 					cfg->airplane.name, cfg->airplane.id, cfg->airplane.pid, cfg->airplane.velocity, cfg->airplane.capacity, cfg->airplane.max_capacity,
-					cfg->airplane.coordinates.x, cfg->airplane.coordinates.y, cfg->airplane.airport_start.name, cfg->airplane.airport_start.id, cfg->airplane.airport_end.name,
-					cfg->airplane.airport_end.id);
+					cfg->airplane.coordinates.x, cfg->airplane.coordinates.y, cfg->airplane.airport_start.name, cfg->airplane.airport_start.id,
+					cfg->airplane.airport_start.coordinates.x, cfg->airplane.airport_start.coordinates.y, cfg->airplane.airport_end.name,
+					cfg->airplane.airport_end.id, cfg->airplane.airport_end.coordinates.x, cfg->airplane.airport_end.coordinates.y);
+			} else if (!cfg->flying) {
+				if (icmp(buffer, "destination") == 0) {
+					// define destination
+					Airport airport;
+					cout("Input airport name:\n > ");
+					cin(DEFAULT_CIN_BUFFER, buffer, MAX_NAME);
+					_cpy(airport.name, buffer, MAX_NAME);
+					//send airport to control
+					sb.from_id = cfg->airplane.pid;
+					sb.cmd_id = CMD_SEND_DESTINATION;
+					sb.command.airport = airport;
+					send_command(cfg, &sb);
+				} else if (icmp(buffer, "board") == 0) {
+					if (!cfg->airplane.airport_end.id) {
+						// Destination has not been set
+						cout("Destination has not been set yet!\nCan not start boarding!\n");
+					} else {
+						//send confirmation to controler
+						sb.from_id = cfg->airplane.pid;
+						sb.cmd_id = CMD_BOARD;
+						send_command(cfg, &sb);
+					}
+				} else if (icmp(buffer, "start") == 0) {
+					if (!cfg->airplane.airport_end.id) {
+						// Destination has not been set
+						cout("Destination has not been set yet!\nCan not start the trip!\n");
+					} else {
+						//send confirmation to controler that I want to start the trip
+						sb.from_id = cfg->airplane.pid;
+						sb.cmd_id = CMD_LIFT_OFF;
+						send_command(cfg, &sb);
+					}
+				} else {
+					cout("Invalid command!\n");
+				}
 			} else {
-				sout("Invalid command!\n");
+				cout("Airplane is flying!\n");
 			}
 		}
-
 	} while (!cfg->die);
 	//event to finish...
 	//SetEvent(cfg->stop_event);
@@ -193,26 +212,26 @@ DWORD WINAPI read_shared_memory(void *param) {
 						//add airport to airport end (destination)
 						cfg->airplane.airport_end = buffer.command.airport;
 						Point p = cfg->airplane.airport_end.coordinates;
-						sout("Destination airport has been set!\nCoordinates: (%u, %u)\n", p.x, p.y);
+						cout("Destination airport has been set!\nCoordinates: (%u, %u)\n", p.x, p.y);
 						break;
 					}
 					case (CMD_SEND_DESTINATION | CMD_ERROR):
 					{
 						//error in send destination
-						sout("Error: '%s'\n", buffer.command.str);
+						cout("Error: '%s'\n", buffer.command.str);
 						break;
 					}
 					case (CMD_BOARD | CMD_OK):
 					{
-						//TODO (cagadous right now) receive number of passengers
+						//TODO receive number of passengers
 						cfg->airplane.capacity = buffer.command.number;
-						sout("Number of passangers in the plane: %d", cfg->airplane.capacity);
+						cout("Number of passangers in the plane: %d", cfg->airplane.capacity);
 						break;
 					}
 					case (CMD_BOARD | CMD_ERROR):
 					{
 						//error in board passengers
-						sout("Error: '%s'\n", buffer.command.str);
+						cout("Error: '%s'\n", buffer.command.str);
 						break;
 					}
 					case (CMD_LIFT_OFF | CMD_OK):
@@ -225,32 +244,40 @@ DWORD WINAPI read_shared_memory(void *param) {
 					case (CMD_LIFT_OFF | CMD_ERROR):
 					{
 						//error saying to the control that the trip is starting
-						sout("Error: '%s'\n", buffer.command.str);
+						cout("Error: '%s'\n", buffer.command.str);
 						break;
 					}
-					case (CMD_FLYING | CMD_OK):
+					case (CMD_LANDED | CMD_OK):
 					{
-
-
+						cout("Received landing clearance from control.\n");
+						cfg->flying = FALSE;
+						cfg->airplane = buffer.command.airplane;
 						break;
 					}
 					case (CMD_FLYING | CMD_ERROR):
 					{
+						cout("Error: '%s'\n", buffer.command.str);
+						break;
+					}
+					case (CMD_SHUTDOWN):
+					{
+						cout("Forcefully shut down by control!\n");
+						cfg->die = TRUE;
 						break;
 					}
 					default:
 					{
-						sout("Oops something went wrong!\n");
+						cout("Oops something went wrong!\n");
 						break;
 					}
 				}
-				//sout("Command: %d\nFrom: %u\nTo: %u\n\n", buffer.cmd_id, buffer.from_id, buffer.to_id);
+				//cout("Command: %d\nFrom: %u\nTo: %u\n\n", buffer.cmd_id, buffer.from_id, buffer.to_id);
 			}
 		} else {
 			// if stop_event is triggered
 			// if stop_airplane is triggered this is redundant
 			cfg->die = TRUE;
-			sout("System has been stopped!\n");
+			cout("System has been stopped!\n");
 		}
 	}
 
@@ -268,6 +295,77 @@ DWORD WINAPI send_heartbeat(void *param) {
 	while (!cfg->die && WaitForMultipleObjects(2, handles, FALSE, HEARTBEAT_TIMER) == WAIT_TIMEOUT) {
 		send_command(cfg, &buffer);
 	}
+
+	return 0;
+}
+
+DWORD WINAPI flying(void *param) {
+	Config *cfg = (Config *) param;
+	HANDLE handles[3];
+	handles[0] = cfg->stop_event;
+	handles[1] = cfg->stop_airplane;
+	handles[2] = cfg->mtx_memory;
+	SharedBuffer sb;
+	sb.from_id = cfg->airplane.pid;
+	sb.to_id = 0;
+	int moved = 1;
+	Point new_coord, old_coord, dest_coord, tmp_coord;
+	new_coord = (const Point){ 0 };
+	do {
+		old_coord = cfg->airplane.coordinates;
+		dest_coord = cfg->airplane.airport_end.coordinates;
+		tmp_coord = old_coord;
+		for (int i = 0; i < cfg->airplane.velocity && moved == 1; i++) {
+			moved = cfg->move(tmp_coord.x, tmp_coord.y,
+				dest_coord.x, dest_coord.y,
+				&new_coord.x, &new_coord.y);
+			tmp_coord = new_coord;
+		}
+		if (moved == 0) {
+			// Arrived
+			if (WaitForMultipleObjects(3, handles, FALSE, INFINITE) == (WAIT_OBJECT_0 + 2)) {
+				// Check previous coord if they can be erased
+				if (cfg->memory->map[old_coord.x][old_coord.y] == cfg->airplane.pid) {
+					cfg->memory->map[old_coord.x][old_coord.y] = 0;
+				}
+				ReleaseMutex(cfg->mtx_memory);
+				cfg->airplane.coordinates = new_coord;
+				// Send landed command
+				sb.cmd_id = CMD_LANDED;
+				sb.command.airplane = cfg->airplane;
+				send_command(cfg, &sb);
+				moved = -1;
+			}
+		} else if (moved == 1) {
+			// Still flying
+			if (WaitForMultipleObjects(3, handles, FALSE, INFINITE) == (WAIT_OBJECT_0 + 2)) {
+				// Check next coords
+				sb.cmd_id = CMD_FLYING;
+				cfg->airplane.coordinates = new_coord;
+				if (cfg->memory->map[new_coord.x][new_coord.y] > 0 && cfg->memory->map[new_coord.x][new_coord.y] <= cfg->memory->max_airport) {
+					// Airport
+				} else if (cfg->memory->map[new_coord.x][new_coord.y] == 0) {
+					// Empty
+					cfg->memory->map[new_coord.x][new_coord.y] = cfg->airplane.pid;
+				} else {
+					// Airplane
+					sb.cmd_id = CMD_AVOID_COLLISION;
+					cfg->airplane.coordinates = old_coord;
+				}
+				// Check old coords if not avoiding collision
+				if (sb.cmd_id != CMD_AVOID_COLLISION && cfg->memory->map[old_coord.x][old_coord.y] == cfg->airplane.pid) {
+					cfg->memory->map[old_coord.x][old_coord.y] = 0;
+				}
+				ReleaseMutex(cfg->mtx_memory);
+				// Send flying command
+				sb.command.airplane = cfg->airplane;
+				send_command(cfg, &sb);
+			}
+		} else {
+			// Error
+			cout("An error occured while moving...\n");
+		}
+	} while (!cfg->die && (moved != -1) && WaitForMultipleObjects(2, handles, FALSE, 1000) == WAIT_TIMEOUT);
 
 	return 0;
 }
@@ -325,73 +423,4 @@ BOOL send_command(Config *cfg, SharedBuffer *sb) {
 	}
 
 	return FALSE;
-}
-
-DWORD WINAPI flying(void *param) {
-	Config *cfg = (Config *) param;
-	HANDLE handles[3];
-	handles[0] = cfg->stop_event;
-	handles[1] = cfg->stop_airplane;
-	handles[2] = cfg->mtx_memory;
-	SharedBuffer sb;
-	sb.from_id = cfg->airplane.pid;
-	sb.to_id = 0;
-	int moved = 1;
-	Point new_coord, old_coord, dest_coord;
-	new_coord = (const Point){ 0 };
-	do {
-		old_coord = cfg->airplane.coordinates;
-		dest_coord = cfg->airplane.airport_end.coordinates;
-		for (int i = 0; i < cfg->airplane.velocity && moved == 1; i++) {
-			moved = cfg->move(old_coord.x, old_coord.y,
-				dest_coord.x, dest_coord.y,
-				&new_coord.x, &new_coord.y);
-		}
-		if (moved == 0) {
-			// Arrived
-			if (WaitForMultipleObjects(3, handles, FALSE, INFINITE) == (WAIT_OBJECT_0 + 2)) {
-				// Check previous coord if they can be erased
-				if (cfg->memory->map[old_coord.x][old_coord.y] == cfg->airplane.pid) {
-					cfg->memory->map[old_coord.x][old_coord.y] = 0;
-				}
-				ReleaseMutex(cfg->mtx_memory);
-				cfg->airplane.coordinates = new_coord;
-				// Send landed command
-				sb.cmd_id = CMD_LANDED;
-				sb.command.coordinates = cfg->airplane.coordinates;
-				send_command(cfg, &sb);
-				cfg->flying = FALSE;
-			}
-		} else if (moved == 1) {
-			// Still flying
-			if (WaitForMultipleObjects(3, handles, FALSE, INFINITE) == (WAIT_OBJECT_0 + 2)) {
-				// Check next coords
-				sb.cmd_id = CMD_FLYING;
-				cfg->airplane.coordinates = new_coord;
-				if (cfg->memory->map[new_coord.x][new_coord.y] > 0 && cfg->memory->map[new_coord.x][new_coord.y] <= cfg->memory->max_airport) {
-					// Airport
-				} else if (cfg->memory->map[new_coord.x][new_coord.y] == 0) {
-					// Empty
-					cfg->memory->map[new_coord.x][new_coord.y] = cfg->airplane.pid;
-				} else {
-					// Airplane
-					sb.cmd_id = CMD_AVOID_COLLISION;
-					cfg->airplane.coordinates = old_coord;
-				}
-				// Check old coords
-				if (cfg->memory->map[old_coord.x][old_coord.y] == cfg->airplane.pid) {
-					cfg->memory->map[old_coord.x][old_coord.y] = 0;
-				}
-				ReleaseMutex(cfg->mtx_memory);
-				// Send flying command
-				sb.command.coordinates = cfg->airplane.coordinates;
-				send_command(cfg, &sb);
-			}
-		} else {
-			// Error
-			sout("An error occured while moving...\n");
-		}
-	} while (!cfg->die && cfg->flying && WaitForMultipleObjects(2, handles, FALSE, 1000) == WAIT_TIMEOUT);
-
-	return 0;
 }

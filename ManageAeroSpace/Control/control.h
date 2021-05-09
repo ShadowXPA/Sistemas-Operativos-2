@@ -5,6 +5,8 @@
 #include <fcntl.h>
 #include "../Utils/utils.h"
 
+#define AIRPORT_RADIUS 10
+
 #define MTX_CTR _T("MTXControl")
 #define MTX_AIRPORT _T("MTXAirport")
 #define MTX_AIRPLANE _T("MTXAirplane")
@@ -86,6 +88,7 @@ Airport *get_available_airport(Config *);
 Airplane *get_available_airplane(Config *);
 Passenger *get_available_passenger(Config *);
 Airport *get_airport_by_name(Config *, const TCHAR *);
+Airport *get_airport_by_name_or_radius(Config *, const TCHAR *, const int, const Point);
 Airplane *get_airplane_by_name(Config *, const TCHAR *);
 Passenger *get_passenger_by_name(Config *, const TCHAR *);
 
