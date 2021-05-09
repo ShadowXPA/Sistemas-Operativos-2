@@ -412,8 +412,15 @@ BOOL send_command(Config *cfg, SharedBuffer *sb) {
 	handles[0] = cfg->stop_event;
 	handles[1] = cfg->stop_airplane;
 	handles[2] = cfg->sem_emptyC;
-	DWORD res;
-	if (!((res = WaitForMultipleObjects(3, handles, FALSE, INFINITE)) == WAIT_OBJECT_0 || res == (WAIT_OBJECT_0 + 1))) {
+	DWORD res = WaitForMultipleObjects(3, handles, FALSE, MAX_TIMEOUT_SEND_COMMAND);
+	if (res == WAIT_OBJECT_0 || res == (WAIT_OBJECT_0 + 1)) {
+		// Ignore
+	} else if (res == WAIT_TIMEOUT) {
+		// Can't connect to control or buffer is full, just die
+		cout("Can not connect to control or circular buffer is full.\nExiting...\n");
+		cfg->die = TRUE;
+		SetEvent(cfg->stop_airplane);
+	} else {
 		WaitForSingleObject(cfg->mtx_C, INFINITE);
 		CopyMemory(&(cfg->memory->bufferControl[cfg->memory->inC]), sb, sizeof(SharedBuffer));
 		cfg->memory->inC = (cfg->memory->inC + 1) % MAX_SHARED_BUFFER;

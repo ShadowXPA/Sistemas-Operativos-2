@@ -8,6 +8,8 @@
 #define DLL_AVIAO _T("SO2_TP_DLL_2021.dll")
 #define DLL_FUNC_MOVE "move"
 
+#define MAX_TIMEOUT_SEND_COMMAND 10000
+
 #define MTX_C _T("AviaoMutexC")
 #define MTX_A _T("AviaoMutexA")
 
