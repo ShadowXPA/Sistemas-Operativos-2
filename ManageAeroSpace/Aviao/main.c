@@ -13,13 +13,13 @@ int _tmain(int argc, TCHAR **argv, TCHAR **envp) {
 		return -1;
 
 	if (!init_config(cfg)) {
-		sout("Could not initialize configuration.\n");
+		cout("Could not initialize configuration.\n");
 		exit_aviao(cfg);
 		return -1;
 	}
 
 	if (argc != 4) {
-		sout("Wrong number of arguments.\nTry '%s [MAX_CAPACITY] [VELOCITY] [AIRPORT_ID]'.\n", argv[0]);
+		cout("Wrong number of arguments.\nTry '%s [MAX_CAPACITY] [VELOCITY] [AIRPORT_ID]'.\n", argv[0]);
 		exit_aviao(cfg);
 		return -1;
 	}
@@ -31,7 +31,7 @@ int _tmain(int argc, TCHAR **argv, TCHAR **envp) {
 
 	if (cfg->airplane.max_capacity < 1 || cfg->airplane.velocity < 1
 		|| cfg->airplane.airport_start.id < 1) {
-		sout("Invalid arguments.\nArguments must be positive numbers.\n");
+		cout("Invalid arguments.\nArguments must be positive numbers.\n");
 		exit_aviao(cfg);
 		return -1;
 	}
