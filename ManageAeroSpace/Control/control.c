@@ -214,7 +214,7 @@ DWORD WINAPI read_command(void *param) {
 			WaitForSingleObject(cfg->mtx_memory, INFINITE);
 			cfg->memory->accepting_planes = !cfg->memory->accepting_planes;
 			ReleaseMutex(cfg->mtx_memory);
-			cout("%s", (cfg->memory->accepting_planes ? _T("Accepting planes.\n") : _T("Not accepting planes.\n")));
+			cout("%s", (cfg->memory->accepting_planes ? _T("Accepting airplanes.\n") : _T("Not accepting airplanes.\n")));
 		} else if (icmp(buffer, "list") == 0) {
 			cout("What do you want to list:\n > ");
 			cin(DEFAULT_CIN_BUFFER, buffer, MAX_NAME);
@@ -252,9 +252,15 @@ DWORD WINAPI read_command(void *param) {
 
 			EnterCriticalSection(&cfg->cs_airplane);
 			Airplane *airplane = get_airplane_by_id(cfg, id);
-			airplane->alive = 0;
-			int pid = airplane->pid;
-			BOOL removed = _remove_airplane(cfg, airplane);
+			BOOL removed = FALSE;
+			int pid = 0;
+			if (airplane != NULL && airplane->active) {
+				airplane->alive = 0;
+				pid = airplane->pid;
+				removed = _remove_airplane(cfg, airplane);
+			} else {
+				cout("Airplane does not exist!\n");
+			}
 			LeaveCriticalSection(&cfg->cs_airplane);
 			if (removed) {
 				SharedBuffer sb;
@@ -385,9 +391,11 @@ DWORD WINAPI read_shared_memory(void *param) {
 					// Airplane is still flying
 					EnterCriticalSection(&cfg->cs_airplane);
 					Airplane *airplane = get_airplane_by_id(cfg, buffer.command.airplane.id);
-					airplane->coordinates = buffer.command.airplane.coordinates;
-					cout("Airplane '%s' (ID: %u, PID: %u) has moved to (x: %u, y: %u)\n",
-						airplane->name, airplane->id, airplane->pid, airplane->coordinates.x, airplane->coordinates.y);
+					if (airplane != NULL && airplane->active) {
+						airplane->coordinates = buffer.command.airplane.coordinates;
+						cout("Airplane '%s' (ID: %u, PID: %u) has moved to (x: %u, y: %u)\n",
+							airplane->name, airplane->id, airplane->pid, airplane->coordinates.x, airplane->coordinates.y);
+					}
 					LeaveCriticalSection(&cfg->cs_airplane);
 					break;
 				}
@@ -396,9 +404,11 @@ DWORD WINAPI read_shared_memory(void *param) {
 					// Airplane is avoiding a collision
 					EnterCriticalSection(&cfg->cs_airplane);
 					Airplane *airplane = get_airplane_by_id(cfg, buffer.command.airplane.id);
-					airplane->coordinates = buffer.command.airplane.coordinates;
-					cout("Airplane '%s' (ID: %u, PID: %u) avoided a collision by waiting at (x: %u, y: %u)\n",
-						airplane->name, airplane->id, airplane->pid, airplane->coordinates.x, airplane->coordinates.y);
+					if (airplane != NULL && airplane->active) {
+						airplane->coordinates = buffer.command.airplane.coordinates;
+						cout("Airplane '%s' (ID: %u, PID: %u) avoided a collision by waiting at (x: %u, y: %u)\n",
+							airplane->name, airplane->id, airplane->pid, airplane->coordinates.x, airplane->coordinates.y);
+					}
 					LeaveCriticalSection(&cfg->cs_airplane);
 					break;
 				}
@@ -407,16 +417,18 @@ DWORD WINAPI read_shared_memory(void *param) {
 					// Airplane has landed
 					EnterCriticalSection(&cfg->cs_airplane);
 					Airplane *airplane = get_airplane_by_id(cfg, buffer.command.airplane.id);
-					airplane->coordinates = buffer.command.airplane.coordinates;
-					cout("Airplane '%s' (ID: %u, PID: %u) has arrived at its destination at (x: %u, y: %u)\n",
-						airplane->name, airplane->id, airplane->pid, airplane->coordinates.x, airplane->coordinates.y);
-					airplane->airport_start = airplane->airport_end;
-					airplane->airport_end = (const Airport){ 0 };
-					buffer.cmd_id |= CMD_OK;
-					buffer.to_id = buffer.from_id;
-					buffer.from_id = 0;
-					buffer.command.airplane = *airplane;
-					send_command(cfg, &buffer);
+					if (airplane != NULL && airplane->active) {
+						airplane->coordinates = buffer.command.airplane.coordinates;
+						cout("Airplane '%s' (ID: %u, PID: %u) has arrived at its destination at (x: %u, y: %u)\n",
+							airplane->name, airplane->id, airplane->pid, airplane->coordinates.x, airplane->coordinates.y);
+						airplane->airport_start = airplane->airport_end;
+						airplane->airport_end = (const Airport){ 0 };
+						buffer.cmd_id |= CMD_OK;
+						buffer.to_id = buffer.from_id;
+						buffer.from_id = 0;
+						buffer.command.airplane = *airplane;
+						send_command(cfg, &buffer);
+					}
 					LeaveCriticalSection(&cfg->cs_airplane);
 					break;
 				}
