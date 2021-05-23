@@ -437,7 +437,7 @@ DWORD WINAPI read_shared_memory(void *param) {
 					// Airplane crashed (1) or retired (0)
 					EnterCriticalSection(&cfg->cs_airplane);
 					Airplane *airplane = get_airplane_by_pid(cfg, buffer.from_id);
-					if (airplane != NULL) {
+					if (airplane != NULL && airplane->active) {
 						if (buffer.command.number) {
 							// Airplane was flying therefore it crashed
 							cout("Airplane '%s' (ID: %u, PID: %u) has crashed on its way to '%s' (x: %u, y: %u) at position (x: %u, y: %u)!\n",
