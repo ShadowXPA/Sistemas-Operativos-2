@@ -437,18 +437,20 @@ DWORD WINAPI read_shared_memory(void *param) {
 					// Airplane crashed (1) or retired (0)
 					EnterCriticalSection(&cfg->cs_airplane);
 					Airplane *airplane = get_airplane_by_pid(cfg, buffer.from_id);
-					if (buffer.command.number) {
-						// Airplane was flying therefore it crashed
-						cout("Airplane '%s' (ID: %u, PID: %u) has crashed on its way to '%s' (x: %u, y: %u) at position (x: %u, y: %u)!\n",
-							airplane->name, airplane->id, airplane->pid, airplane->airport_end.name, airplane->airport_end.coordinates.x,
-							airplane->airport_end.coordinates.y, airplane->coordinates.x, airplane->coordinates.y);
-						// TODO Send crash message to passengers on the airplane
-					} else {
-						// Airplane was stationed at an airport therefore the pilot retired
-						cout("Pilot from airplane '%s' (ID: %u, PID: %u) has retired.\n", airplane->name, airplane->id, airplane->pid);
+					if (airplane != NULL) {
+						if (buffer.command.number) {
+							// Airplane was flying therefore it crashed
+							cout("Airplane '%s' (ID: %u, PID: %u) has crashed on its way to '%s' (x: %u, y: %u) at position (x: %u, y: %u)!\n",
+								airplane->name, airplane->id, airplane->pid, airplane->airport_end.name, airplane->airport_end.coordinates.x,
+								airplane->airport_end.coordinates.y, airplane->coordinates.x, airplane->coordinates.y);
+							// TODO Send crash message to passengers on the airplane
+						} else {
+							// Airplane was stationed at an airport therefore the pilot retired
+							cout("Pilot from airplane '%s' (ID: %u, PID: %u) has retired.\n", airplane->name, airplane->id, airplane->pid);
+						}
+						airplane->alive = 0;
+						_remove_airplane(cfg, airplane);
 					}
-					airplane->alive = 0;
-					_remove_airplane(cfg, airplane);
 					LeaveCriticalSection(&cfg->cs_airplane);
 					break;
 				}
