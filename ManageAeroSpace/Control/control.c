@@ -3,14 +3,6 @@
 BOOL init_config(Config *cfg) {
 	memset(cfg, 0, sizeof(Config));
 
-	//cfg->mtx_instance = OpenMutex(MUTEX_ALL_ACCESS, TRUE, MTX_CTR);
-	//if (cfg->mtx_instance == NULL) {
-	//	cfg->mtx_instance = CreateMutex(NULL, TRUE, MTX_CTR);
-	//} else {
-	//	cout("Application already running\n");
-	//	return FALSE;
-	//}
-
 	cfg->mtx_instance = CreateMutex(NULL, TRUE, MTX_CTR);
 	DWORD already_exists = GetLastError();
 	if (already_exists == ERROR_ALREADY_EXISTS) {
@@ -143,32 +135,32 @@ void init_control(Config *cfg) {
 		return;
 	cfg->memory->accepting_planes = TRUE;
 	cfg->memory->max_airport = cfg->max_airport;
-	// init named pipes
+
 	// init threads:
-	HANDLE thread[4];
+	HANDLE thread[3];
 	// read command
-	thread[0] = CreateThread(NULL, 0, read_command, cfg, 0, NULL);
-	if (thread[0] == NULL)
+	HANDLE threadCmd = CreateThread(NULL, 0, read_command, cfg, 0, NULL);
+	if (threadCmd == NULL)
 		return;
 	// read shared memory
-	thread[1] = CreateThread(NULL, 0, read_shared_memory, cfg, 0, NULL);
-	if (thread[1] == NULL)
+	thread[0] = CreateThread(NULL, 0, read_shared_memory, cfg, 0, NULL);
+	if (thread[0] == NULL)
 		return;
 	// read named pipes
-	thread[2] = CreateThread(NULL, 0, read_named_pipes, cfg, 0, NULL);
-	if (thread[2] == NULL)
+	thread[1] = CreateThread(NULL, 0, read_named_pipes, cfg, 0, NULL);
+	if (thread[1] == NULL)
 		return;
 	// handle heartbeat from airplanes
-	thread[3] = CreateThread(NULL, 0, handle_heartbeat, cfg, 0, NULL);
-	if (thread[3] == NULL)
+	thread[2] = CreateThread(NULL, 0, handle_heartbeat, cfg, 0, NULL);
+	if (thread[2] == NULL)
 		return;
 
-	WaitForMultipleObjects(4, thread, TRUE, INFINITE);
+	WaitForMultipleObjects(3, thread, TRUE, INFINITE);
 
+	CloseHandle(threadCmd);
 	CloseHandle(thread[0]);
 	CloseHandle(thread[1]);
 	CloseHandle(thread[2]);
-	CloseHandle(thread[3]);
 }
 
 DWORD WINAPI read_command(void *param) {
@@ -179,7 +171,7 @@ DWORD WINAPI read_command(void *param) {
 		cin(DEFAULT_CIN_BUFFER, buffer, MAX_NAME);
 
 		if (icmp(buffer, "add") == 0) {
-			// add airport
+			// add passenger
 			Airport airport;
 			cout("Input airport name:\n > ");
 			cin(DEFAULT_CIN_BUFFER, buffer, MAX_NAME);
@@ -267,7 +259,7 @@ DWORD WINAPI read_command(void *param) {
 				sb.cmd_id = CMD_SHUTDOWN;
 				sb.to_id = pid;
 				sb.from_id = 0;
-				send_command(cfg, &sb);
+				send_command_sharedmemory(cfg, &sb);
 				cout("Airplane (ID: %u, PID: %u) removed!\n", id, pid);
 			} else {
 				cout("Airplane (ID: %u) not removed!\n", id);
@@ -310,7 +302,7 @@ DWORD WINAPI read_shared_memory(void *param) {
 		// Airplane has crashed or pilot retired					// DONE
 		// Airplane sends heartbeat									// DONE
 		// Send destination coordinates								// DONE
-		if (receive_command(cfg, &buffer)) {
+		if (receive_command_sharedmemory(cfg, &buffer)) {
 			switch (buffer.cmd_id) {
 				case CMD_HELLO:
 				{
@@ -328,7 +320,7 @@ DWORD WINAPI read_shared_memory(void *param) {
 					}
 					buffer.to_id = buffer.from_id;
 					buffer.from_id = 0;
-					send_command(cfg, &buffer);
+					send_command_sharedmemory(cfg, &buffer);
 					LeaveCriticalSection(&cfg->cs_airplane);
 					LeaveCriticalSection(&cfg->cs_airport);
 					break;
@@ -345,7 +337,7 @@ DWORD WINAPI read_shared_memory(void *param) {
 								buffer.cmd_id |= CMD_ERROR;
 								cpy(buffer.command.str, "Can not add departure as destination!", MAX_NAME);
 							} else {
-								// set airport to airplane
+								// set passenger to airplane
 								buffer.cmd_id |= CMD_OK;
 								airplane->airport_end = *airport;
 								buffer.command.airport = *airport;
@@ -360,7 +352,7 @@ DWORD WINAPI read_shared_memory(void *param) {
 					}
 					buffer.to_id = buffer.from_id;
 					buffer.from_id = 0;
-					send_command(cfg, &buffer);
+					send_command_sharedmemory(cfg, &buffer);
 					LeaveCriticalSection(&cfg->cs_airplane);
 					LeaveCriticalSection(&cfg->cs_airport);
 					break;
@@ -382,7 +374,7 @@ DWORD WINAPI read_shared_memory(void *param) {
 					}
 					buffer.to_id = buffer.from_id;
 					buffer.from_id = 0;
-					send_command(cfg, &buffer);
+					send_command_sharedmemory(cfg, &buffer);
 					LeaveCriticalSection(&cfg->cs_airplane);
 					break;
 				}
@@ -427,7 +419,7 @@ DWORD WINAPI read_shared_memory(void *param) {
 						buffer.to_id = buffer.from_id;
 						buffer.from_id = 0;
 						buffer.command.airplane = *airplane;
-						send_command(cfg, &buffer);
+						send_command_sharedmemory(cfg, &buffer);
 					}
 					LeaveCriticalSection(&cfg->cs_airplane);
 					break;
@@ -445,7 +437,7 @@ DWORD WINAPI read_shared_memory(void *param) {
 								airplane->airport_end.coordinates.y, airplane->coordinates.x, airplane->coordinates.y);
 							// TODO Send crash message to passengers on the airplane
 						} else {
-							// Airplane was stationed at an airport therefore the pilot retired
+							// Airplane was stationed at an passenger therefore the pilot retired
 							cout("Pilot from airplane '%s' (ID: %u, PID: %u) has retired.\n", airplane->name, airplane->id, airplane->pid);
 						}
 						airplane->alive = 0;
@@ -477,7 +469,7 @@ DWORD WINAPI read_shared_memory(void *param) {
 	return 0;
 }
 
-BOOL receive_command(Config *cfg, SharedBuffer *sb) {
+BOOL receive_command_sharedmemory(Config *cfg, SharedBuffer *sb) {
 	HANDLE handles[2];
 	handles[0] = cfg->stop_event;
 	handles[1] = cfg->sem_itemC;
@@ -493,7 +485,7 @@ BOOL receive_command(Config *cfg, SharedBuffer *sb) {
 	return FALSE;
 }
 
-BOOL send_command(Config *cfg, SharedBuffer *sb) {
+BOOL send_command_sharedmemory(Config *cfg, SharedBuffer *sb) {
 	HANDLE handles[2];
 	handles[0] = cfg->stop_event;
 	handles[1] = cfg->sem_emptyA;
@@ -511,8 +503,135 @@ BOOL send_command(Config *cfg, SharedBuffer *sb) {
 
 DWORD WINAPI read_named_pipes(void *param) {
 	Config *cfg = (Config *) param;
-	WaitForSingleObject(cfg->stop_event, INFINITE);
+	Passenger *p;
+	HANDLE handles[2];
+	handles[0] = cfg->stop_event;
+	handles[1] = CreateSemaphore(NULL, 0, cfg->max_passenger, SEM_PIPE);
+
+	while (!cfg->die) {
+		p = get_available_passenger(cfg);
+
+		if (p == NULL)
+			continue;
+
+		p->pipe = CreateNamedPipe(PIPE_NAME, PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED, PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT, PIPE_UNLIMITED_INSTANCES, cfg->max_passenger * sizeof(NamedPipeBuffer), cfg->max_passenger * sizeof(NamedPipeBuffer), NMPWAIT_WAIT_FOREVER, NULL);
+
+		if (p->pipe == INVALID_HANDLE_VALUE) {
+			return -1;
+		}
+
+		DWORD res = WaitForMultipleObjects(2, handles, FALSE, INFINITE);
+
+		if (res == WAIT_OBJECT_0 + 1) {
+			BOOL connected = ConnectNamedPipe(p->pipe, &cfg->overlapped);
+			if (!connected && (GetLastError() == ERROR_PIPE_CONNECTED)) {
+				connected = TRUE;
+			}
+
+			if (connected) {
+				// TODO handle client
+				NamedPipeBuffer npBuffer;
+				PassengerConfig *pCfg = calloc(1, sizeof(PassengerConfig));
+				if (pCfg != NULL) {
+					pCfg->cfg = cfg;
+					pCfg->passenger = p;
+					receive_message_namedpipe(pCfg, &npBuffer);
+					if (npBuffer.cmd_id == CMD_HELLO) {
+						EnterCriticalSection(&cfg->cs_airport);
+						EnterCriticalSection(&cfg->cs_airplane);
+						EnterCriticalSection(&cfg->cs_passenger);
+						if (add_passenger(cfg, p, &npBuffer.command.passenger)) {
+							// TODO check if there is any airplane that goes to destination and is not full
+							// if so send CMD_BOARD
+							// TODO read namedpipes
+							npBuffer.cmd_id |= CMD_OK;
+							npBuffer.command.passenger = *p;
+							send_message_namedpipe(pCfg, &npBuffer);
+							CreateThread(NULL, 0, handle_single_passenger, pCfg, 0, NULL);
+						} else {
+							npBuffer.cmd_id |= CMD_ERROR;
+							cpy(npBuffer.command.str, "Error adding passenger!", MAX_NAME);
+							send_message_namedpipe(pCfg, &npBuffer);
+							FlushFileBuffers(p->pipe);
+							DisconnectNamedPipe(p->pipe);
+							CloseHandle(p->pipe);
+							free(pCfg);
+						}
+						LeaveCriticalSection(&cfg->cs_passenger);
+						LeaveCriticalSection(&cfg->cs_airplane);
+						LeaveCriticalSection(&cfg->cs_airport);
+					} else {
+						FlushFileBuffers(p->pipe);
+						DisconnectNamedPipe(p->pipe);
+						CloseHandle(p->pipe);
+						free(pCfg);
+					}
+				} else {
+					FlushFileBuffers(p->pipe);
+					DisconnectNamedPipe(p->pipe);
+					CloseHandle(p->pipe);
+				}
+			} else {
+				CloseHandle(p->pipe);
+			}
+		} else {
+			cfg->die = TRUE;
+			CloseHandle(p->pipe);
+		}
+	}
+
+	CloseHandle(handles[1]);
+
+	//WaitForSingleObject(cfg->stop_event, INFINITE);
+
+
 	return 0;
+}
+
+BOOL receive_message_namedpipe(PassengerConfig *pCfg, NamedPipeBuffer *npBuffer) {
+	DWORD read;
+	HANDLE handles[3];
+	handles[0] = pCfg->cfg->stop_event;
+	handles[1] = pCfg->cfg->ovr_event;
+	BOOL success = ReadFile(pCfg->passenger->pipe, npBuffer, sizeof(NamedPipeBuffer), &read, &pCfg->cfg->overlapped);
+	DWORD res = WaitForMultipleObjects(2, handles, FALSE, INFINITE);
+	if (res == WAIT_OBJECT_0) {
+		// Ignore
+		return FALSE;
+	} else if (res == WAIT_TIMEOUT) {
+		cout("Can not connect to named pipe.\n");
+		return FALSE;
+	} else {
+		GetOverlappedResult(pCfg->passenger->pipe, &pCfg->cfg->overlapped, &read, FALSE);
+		if (read != sizeof(NamedPipeBuffer)) {
+			return FALSE;
+		}
+	}
+	cout("Received: %u\n", npBuffer->cmd_id);
+	return TRUE;
+}
+
+BOOL send_message_namedpipe(PassengerConfig *pCfg, NamedPipeBuffer *npBuffer) {
+	DWORD written;
+	HANDLE handles[2];
+	handles[0] = pCfg->cfg->stop_event;
+	handles[1] = pCfg->cfg->ovr_event;
+	BOOL success = WriteFile(pCfg->passenger->pipe, npBuffer, sizeof(NamedPipeBuffer), &written, &pCfg->cfg->overlapped);
+	DWORD res = WaitForMultipleObjects(2, handles, FALSE, INFINITE);
+	if (res == WAIT_OBJECT_0) {
+		// Ignore
+		return FALSE;
+	} else if (res == WAIT_TIMEOUT) {
+		cout("Can not connect to named pipe.\n");
+		return FALSE;
+	} else {
+		GetOverlappedResult(pCfg->passenger->pipe, &pCfg->cfg->overlapped, &written, FALSE);
+		if (written != sizeof(NamedPipeBuffer)) {
+			return FALSE;
+		}
+	}
+	cout("Sent: %u\n", npBuffer->cmd_id);
+	return TRUE;
 }
 
 DWORD WINAPI handle_heartbeat(void *param) {
@@ -536,6 +655,24 @@ DWORD WINAPI handle_heartbeat(void *param) {
 			LeaveCriticalSection(&cfg->cs_airplane);
 		}
 	} while (!cfg->die);
+	return 0;
+}
+
+DWORD WINAPI handle_single_passenger(void *param) {
+	PassengerConfig *pCfg = (PassengerConfig *) param;
+	cout("Passenger '%s' connected!\n", pCfg->passenger->name);
+	Sleep(5000);
+	NamedPipeBuffer npBuffer;
+
+	npBuffer.cmd_id = CMD_SHUTDOWN;
+	send_message_namedpipe(pCfg, &npBuffer);
+
+
+	FlushFileBuffers(pCfg->passenger->pipe);
+	DisconnectNamedPipe(pCfg->passenger->pipe);
+	CloseHandle(pCfg->passenger->pipe);
+	remove_passenger(pCfg->cfg, pCfg->passenger->id);
+	free(pCfg);
 	return 0;
 }
 
@@ -675,7 +812,7 @@ BOOL add_airport(Config *cfg, Airport *airport) {
 	// check if coordinates are valid
 	if (airport->coordinates.x >= MAX_MAP || airport->coordinates.y >= MAX_MAP)
 		return FALSE;
-	// check if name already exists or if any airport is too close to the airport
+	// check if name already exists or if any passenger is too close to the passenger
 	if (get_airport_by_name_or_radius(cfg, airport->name, airport->coordinates, AIRPORT_RADIUS) != NULL)
 		return FALSE;
 
@@ -711,7 +848,7 @@ BOOL add_airplane(Config *cfg, Airplane *airplane) {
 	// index out of bounds?
 	if (airport == NULL)
 		return FALSE;
-	// airport exists?
+	// passenger exists?
 	if (!airport->active)
 		return FALSE;
 
@@ -731,14 +868,31 @@ BOOL add_airplane(Config *cfg, Airplane *airplane) {
 	return TRUE;
 }
 
-BOOL add_passenger(Config *cfg, Passenger *passenger) {
-	Passenger *tmp = get_available_passenger(cfg);
+BOOL add_passenger(Config *cfg, Passenger *tmp, Passenger *passenger) {
+	//Passenger *tmp = get_available_passenger(cfg);
 	// check if maximum has been reached
 	if (tmp == NULL)
 		return FALSE;
 	// check if name already exists
 	if (get_passenger_by_name(cfg, passenger->name) != NULL)
 		return FALSE;
+
+	Airport *ap = get_airport_by_id(cfg, passenger->airport.id);
+	if (ap == NULL || !ap->active)
+		return FALSE;
+
+	tmp->airport = *ap;
+
+	ap = get_airport_by_id(cfg, passenger->airport_end.id);
+	if (ap == NULL || !ap->active)
+		return FALSE;
+
+	tmp->airport_end = *ap;
+
+	tmp->active = 1;
+	tmp->airplane = (const Airplane){ 0 }; // TODO check if there is any airplane
+	_cpy(tmp->name, passenger->name, MAX_NAME);
+	tmp->wait_time = passenger->wait_time;
 
 	*passenger = *tmp;
 
@@ -795,6 +949,16 @@ BOOL _remove_airplane(Config *cfg, Airplane *airplane) {
 }
 
 BOOL remove_passenger(Config *cfg, unsigned int id) {
+	Passenger *passenger = get_passenger_by_id(cfg, id);
+	if (passenger != NULL && passenger->active) {
+		Airplane *airplane = get_airplane_by_id(cfg, passenger->airplane.id);
+		if (airplane != NULL)
+			airplane->capacity--;
+		memset(passenger, 0, sizeof(Passenger));
+		passenger->id = id;
+		return TRUE;
+	}
+
 	return FALSE;
 }
 
@@ -831,7 +995,7 @@ void print_passenger(Config *cfg) {
 				cout("Flying on: '%s' (ID: %u, PID: %u)\nCoordinates: (x: %u, y: %u)\n", airplane.name, airplane.id, airplane.pid, airplane.coordinates.x, airplane.coordinates.y);
 			} else {
 				Airport current_airport = passenger->airport;
-				cout("Waiting for airplane at: '%s' (ID: %u)\nCoordinates: (x: %u, y: %u)\nWaiting time left: %d\n", current_airport.name, current_airport.id,
+				cout("Waiting for airplane at: '%s' (ID: %u)\nCoordinates: (x: %u, y: %u)\nWaiting time left: %u\n", current_airport.name, current_airport.id,
 					current_airport.coordinates.x, current_airport.coordinates.y, passenger->wait_time);
 			}
 			cout("\n");

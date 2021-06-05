@@ -1,6 +1,6 @@
 #include "aviao.h"
 
-void exit_aviao(Config *cfg);
+void exit_aviao(Config *);
 
 int _tmain(int argc, TCHAR **argv, TCHAR **envp) {
 #ifdef UNICODE

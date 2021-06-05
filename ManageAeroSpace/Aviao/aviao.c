@@ -56,7 +56,6 @@ void end_config(Config *cfg) {
 void init_aviao(Config *cfg) {
 	TCHAR buffer[MAX_NAME] = { 0 };
 	SharedBuffer sb;
-	// init window (Win32)
 
 	// init shared memory
 	cfg->obj_map = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, FILE_MAPPING_NAME);
@@ -83,13 +82,13 @@ void init_aviao(Config *cfg) {
 	sb.cmd_id = CMD_HELLO;
 	sb.from_id = cfg->airplane.pid;
 	sb.command.airplane = cfg->airplane;
-	BOOL bool = send_command(cfg, &sb);
+	BOOL bool = send_command_sharedmemory(cfg, &sb);
 	if (!bool) {
 		cout("The controller is down!");
 		return;
 	}
 	//receive coordinates
-	receive_command(cfg, &sb);
+	receive_command_sharedmemory(cfg, &sb);
 	if (sb.cmd_id == (CMD_HELLO | CMD_OK)) {
 		cfg->airplane = sb.command.airplane;
 		cout("Airplane registered!\n");
@@ -101,23 +100,22 @@ void init_aviao(Config *cfg) {
 		return;
 	}
 	// init threads:
-	HANDLE thread[3];
-	// read command
-	thread[0] = CreateThread(NULL, 0, read_command, cfg, 0, NULL);
+	HANDLE thread[2];
+	HANDLE threadCmd = CreateThread(NULL, 0, read_command, cfg, 0, NULL);
+	if (threadCmd == NULL)
+		return;
+	thread[0] = CreateThread(NULL, 0, read_shared_memory, cfg, 0, NULL);
 	if (thread[0] == NULL)
 		return;
-	thread[1] = CreateThread(NULL, 0, read_shared_memory, cfg, 0, NULL);
+	thread[1] = CreateThread(NULL, 0, send_heartbeat, cfg, 0, NULL);
 	if (thread[1] == NULL)
 		return;
-	thread[2] = CreateThread(NULL, 0, send_heartbeat, cfg, 0, NULL);
-	if (thread[2] == NULL)
-		return;
 
-	WaitForMultipleObjects(3, thread, TRUE, INFINITE);
+	WaitForMultipleObjects(2, thread, TRUE, INFINITE);
 
+	CloseHandle(threadCmd);
 	CloseHandle(thread[0]);
 	CloseHandle(thread[1]);
-	CloseHandle(thread[2]);
 }
 
 DWORD WINAPI read_command(void *param) {
@@ -139,7 +137,7 @@ DWORD WINAPI read_command(void *param) {
 				sb.cmd_id = CMD_CRASHED_RETIRED;
 				sb.from_id = cfg->airplane.pid;
 				sb.command.number = cfg->flying;
-				send_command(cfg, &sb);
+				send_command_sharedmemory(cfg, &sb);
 			} else if (icmp(buffer, "help") == 0) {
 				// show all commands
 				cout("help        -> Shows this\n");
@@ -165,7 +163,7 @@ DWORD WINAPI read_command(void *param) {
 					sb.from_id = cfg->airplane.pid;
 					sb.cmd_id = CMD_SEND_DESTINATION;
 					sb.command.airport = airport;
-					send_command(cfg, &sb);
+					send_command_sharedmemory(cfg, &sb);
 				} else if (icmp(buffer, "board") == 0) {
 					if (!cfg->airplane.airport_end.id) {
 						// Destination has not been set
@@ -174,7 +172,7 @@ DWORD WINAPI read_command(void *param) {
 						//send confirmation to controler
 						sb.from_id = cfg->airplane.pid;
 						sb.cmd_id = CMD_BOARD;
-						send_command(cfg, &sb);
+						send_command_sharedmemory(cfg, &sb);
 					}
 				} else if (icmp(buffer, "start") == 0) {
 					if (!cfg->airplane.airport_end.id) {
@@ -184,7 +182,7 @@ DWORD WINAPI read_command(void *param) {
 						//send confirmation to controler that I want to start the trip
 						sb.from_id = cfg->airplane.pid;
 						sb.cmd_id = CMD_LIFT_OFF;
-						send_command(cfg, &sb);
+						send_command_sharedmemory(cfg, &sb);
 					}
 				} else {
 					cout("Invalid command!\n");
@@ -204,7 +202,7 @@ DWORD WINAPI read_shared_memory(void *param) {
 	Config *cfg = (Config *) param;
 	SharedBuffer buffer;
 	while (!cfg->die) {
-		if (receive_command(cfg, &buffer)) {
+		if (receive_command_sharedmemory(cfg, &buffer)) {
 			if (buffer.to_id == cfg->airplane.pid) {
 				switch (buffer.cmd_id) {
 					case (CMD_SEND_DESTINATION | CMD_OK):
@@ -293,7 +291,7 @@ DWORD WINAPI send_heartbeat(void *param) {
 	buffer.from_id = cfg->airplane.pid;
 	buffer.cmd_id = CMD_HEARTBEAT;
 	while (!cfg->die && WaitForMultipleObjects(2, handles, FALSE, HEARTBEAT_TIMER) == WAIT_TIMEOUT) {
-		send_command(cfg, &buffer);
+		send_command_sharedmemory(cfg, &buffer);
 	}
 
 	return 0;
@@ -333,7 +331,7 @@ DWORD WINAPI flying(void *param) {
 				// Send landed command
 				sb.cmd_id = CMD_LANDED;
 				sb.command.airplane = cfg->airplane;
-				send_command(cfg, &sb);
+				send_command_sharedmemory(cfg, &sb);
 				moved = -1;
 			}
 		} else if (moved == 1) {
@@ -359,7 +357,7 @@ DWORD WINAPI flying(void *param) {
 				ReleaseMutex(cfg->mtx_memory);
 				// Send flying command
 				sb.command.airplane = cfg->airplane;
-				send_command(cfg, &sb);
+				send_command_sharedmemory(cfg, &sb);
 			}
 		} else {
 			// Error
@@ -381,7 +379,7 @@ DWORD WINAPI flying(void *param) {
 * and releasing the sem_emptyA semaphore (meaning there is a new empty space)
 * else release the sem_itemA semaphore (meaning the item has not been consumed)
 */
-BOOL receive_command(Config *cfg, SharedBuffer *sb) {
+BOOL receive_command_sharedmemory(Config *cfg, SharedBuffer *sb) {
 	HANDLE handles[3];
 	handles[0] = cfg->stop_event;
 	handles[1] = cfg->stop_airplane;
@@ -407,7 +405,7 @@ BOOL receive_command(Config *cfg, SharedBuffer *sb) {
 	} while (TRUE);
 }
 
-BOOL send_command(Config *cfg, SharedBuffer *sb) {
+BOOL send_command_sharedmemory(Config *cfg, SharedBuffer *sb) {
 	HANDLE handles[3];
 	handles[0] = cfg->stop_event;
 	handles[1] = cfg->stop_airplane;

@@ -16,6 +16,8 @@ extern "C" {
 #include <stdio.h>
 #include <Windows.h>
 #include <string.h>
+#include <io.h>
+#include <fcntl.h>
 
 	DLL_API void clear_input_stream(FILE *);
 
@@ -55,6 +57,9 @@ extern "C" {
 #define SEM_ITEM_C _T("SemaphoreItemC")
 #define SEM_ITEM_A _T("SemaphoreItemA")
 #define STOP_SYSTEM_EVENT _T("StopEvent")
+
+#define SEM_PIPE _T("SemaphorePipe")
+#define PIPE_NAME _T("\\\\.\\pipe\\AeroSpace")
 
 	// Command IDs
 #define CMD_HELLO				0b0000000000000001
@@ -99,10 +104,11 @@ extern "C" {
 		unsigned int id;					// 191 ~ 1190
 		unsigned int active : 1;
 		TCHAR name[MAX_NAME];
-		int wait_time;
+		DWORD wait_time;
 		Airport airport;
 		Airport airport_end;
 		Airplane airplane;					// PID 0 not in airplane, != 0 in an airplane
+		HANDLE pipe;
 	} Passenger;
 
 	DLL_API typedef union command {
@@ -110,6 +116,7 @@ extern "C" {
 		TCHAR str[MAX_NAME];
 		Airplane airplane;
 		Airport airport;
+		Passenger passenger;
 		int number;
 	} Command;
 
@@ -129,6 +136,11 @@ extern "C" {
 		int inA, outA;
 		SharedBuffer bufferAirplane[MAX_SHARED_BUFFER];
 	} SharedMemory;
+
+	DLL_API typedef struct namedpipebuffer {
+		unsigned int cmd_id;
+		Command command;
+	} NamedPipeBuffer;
 
 	/*DLL_API BOOL createOrOpenRegistry(const TCHAR *subkey, HKEY *key, DWORD *result);
 	DLL_API BOOL createOrEditRegistryValue(const TCHAR *subkey, const TCHAR *subvalue, DWORD dwType, HKEY *key);

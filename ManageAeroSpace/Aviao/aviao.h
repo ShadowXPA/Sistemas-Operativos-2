@@ -1,8 +1,6 @@
 #ifndef AVIAO_H
 #define AVIAO_H
 
-#include <io.h>
-#include <fcntl.h>
 #include "../Utils/utils.h"
 
 #define DLL_AVIAO _T("SO2_TP_DLL_2021.dll")
@@ -37,15 +35,15 @@ typedef struct cfg {
 } Config;
 
 int init_config(Config *);
-void end_config(Config *cfg);
-void init_aviao(Config *cfg);
+void end_config(Config *);
+void init_aviao(Config *);
 
-BOOL receive_command(Config *, SharedBuffer *);
-BOOL send_command(Config *, SharedBuffer *);
+BOOL receive_command_sharedmemory(Config *, SharedBuffer *);
+BOOL send_command_sharedmemory(Config *, SharedBuffer *);
 
-DWORD WINAPI read_command(void *param);
-DWORD WINAPI read_shared_memory(void *param);
-DWORD WINAPI send_heartbeat(void *param);
-DWORD WINAPI flying(void *param);
+DWORD WINAPI read_command(void *);
+DWORD WINAPI read_shared_memory(void *);
+DWORD WINAPI send_heartbeat(void *);
+DWORD WINAPI flying(void *);
 
 #endif // !AVIAO_H

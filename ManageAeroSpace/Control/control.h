@@ -1,8 +1,6 @@
 #ifndef CONTROL_H
 #define CONTROL_H
 
-#include <io.h>
-#include <fcntl.h>
 #include "../Utils/utils.h"
 
 #define AIRPORT_RADIUS 10
@@ -68,6 +66,9 @@ typedef struct cfg {
 	HANDLE sem_emptyA;					// Semaphore for empty spots in BufferA
 	HANDLE sem_itemA;					// Semaphore for items in BufferA
 	HANDLE mtx_A;						// Mutex for BufferA
+	// Pipe Handles
+	OVERLAPPED overlapped;
+	HANDLE ovr_event;
 } Config;
 
 BOOL init_config(Config *);
@@ -78,6 +79,12 @@ DWORD WINAPI read_command(void *);
 DWORD WINAPI read_shared_memory(void *);
 DWORD WINAPI read_named_pipes(void *);
 DWORD WINAPI handle_heartbeat(void *);
+DWORD WINAPI handle_single_passenger(void *);
+
+typedef struct passengercfg {
+	Config *cfg;
+	Passenger *passenger;
+} PassengerConfig;
 
 void *get_by_id(Config *, unsigned int);
 Airport *get_airport_by_id(Config *, unsigned int);
@@ -94,7 +101,7 @@ Passenger *get_passenger_by_name(Config *, const TCHAR *);
 
 BOOL add_airport(Config *, Airport *);
 BOOL add_airplane(Config *, Airplane *);
-BOOL add_passenger(Config *, Passenger *);
+BOOL add_passenger(Config *, Passenger *, Passenger *);
 BOOL remove_airport(Config *, unsigned int);
 BOOL remove_airplane(Config *, unsigned int);
 BOOL _remove_airplane(Config *, Airplane *);
@@ -104,7 +111,9 @@ void print_airports(Config *);
 void print_airplane(Config *);
 void print_passenger(Config *);
 
-BOOL receive_command(Config *, SharedBuffer *);
-BOOL send_command(Config *, SharedBuffer *);
+BOOL receive_command_sharedmemory(Config *, SharedBuffer *);
+BOOL send_command_sharedmemory(Config *, SharedBuffer *);
+BOOL receive_message_namedpipe(PassengerConfig *, NamedPipeBuffer *);
+BOOL send_message_namedpipe(PassengerConfig *, NamedPipeBuffer *);
 
 #endif // !CONTROL_H
