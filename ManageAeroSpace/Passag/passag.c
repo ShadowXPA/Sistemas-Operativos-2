@@ -3,14 +3,18 @@
 BOOL init_config(Config *cfg) {
 	memset(cfg, 0, sizeof(Config));
 
-	cfg->ovr_event = CreateEvent(NULL, TRUE, FALSE, NULL);
-	if (cfg->ovr_event == NULL)
+	cfg->passenger.pipe_event = CreateEvent(NULL, TRUE, FALSE, NULL);
+	if (cfg->passenger.pipe_event == NULL)
 		return FALSE;
 
-	cfg->overlapped.hEvent = cfg->ovr_event;
+	cfg->passenger.overlapped.hEvent = cfg->passenger.pipe_event;
 
 	cfg->sem_pipe = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, SEM_PIPE);
 	if (cfg->sem_pipe == NULL)
+		return FALSE;
+
+	cfg->board_event = CreateEvent(NULL, TRUE, FALSE, NULL);
+	if (cfg->board_event == NULL)
 		return FALSE;
 
 	cfg->stop_event = OpenEvent(EVENT_ALL_ACCESS, FALSE, STOP_SYSTEM_EVENT);
@@ -29,7 +33,7 @@ void end_config(Config *cfg) {
 	FlushFileBuffers(cfg->passenger.pipe);
 	DisconnectNamedPipe(cfg->passenger.pipe);
 	CloseHandle(cfg->passenger.pipe);
-	CloseHandle(cfg->ovr_event);
+	CloseHandle(cfg->passenger.pipe_event);
 	CloseHandle(cfg->stop_event);
 	CloseHandle(cfg->stop_passag);
 }
@@ -98,7 +102,6 @@ void init_passag(Config *cfg) {
 		cout("Error connecting to control! Error code: %u\n", buff.cmd_id);
 		return;
 	}
-	// TODO wait timer
 	// init threads
 	HANDLE threadCmd = CreateThread(NULL, 0, read_command, cfg, 0, NULL);
 	if (threadCmd == NULL)
@@ -106,16 +109,57 @@ void init_passag(Config *cfg) {
 	HANDLE thread = CreateThread(NULL, 0, read_named_pipes, cfg, 0, NULL);
 	if (thread == NULL)
 		return;
+	HANDLE threadTimer = NULL;
+	if (cfg->passenger.wait_time != INFINITE) {
+		threadTimer = CreateThread(NULL, 0, wait_time, cfg, 0, NULL);
+		if (threadTimer == NULL)
+			return;
+	}
 
 	WaitForSingleObject(thread, INFINITE);
 
 	CloseHandle(threadCmd);
 	CloseHandle(thread);
+	if (threadTimer != NULL)
+		CloseHandle(threadTimer);
+}
+
+DWORD WINAPI wait_time(void *param) {
+	Config *cfg = (Config *) param;
+	HANDLE handles[3];
+	handles[0] = cfg->stop_event;
+	handles[1] = cfg->stop_passag;
+	handles[2] = cfg->board_event;
+
+	DWORD res = WaitForMultipleObjects(3, handles, FALSE, cfg->passenger.wait_time * 1000);
+
+	if (res == WAIT_TIMEOUT) {
+		NamedPipeBuffer npBuffer;
+		npBuffer.cmd_id = CMD_CRASHED_RETIRED;
+		send_message_namedpipe(cfg, &npBuffer);
+		SetEvent(cfg->stop_passag);
+	}
+
+	return 0;
 }
 
 DWORD WINAPI read_command(void *param) {
 	Config *cfg = (Config *) param;
-	// TODO add exit command
+	TCHAR buffer[MAX_NAME] = { 0 };
+	do {
+		cout("Input command:\n > ");
+		cin(DEFAULT_CIN_BUFFER, buffer, MAX_NAME);
+
+		if (icmp(buffer, "exit") == 0) {
+			cfg->die = TRUE;
+			NamedPipeBuffer npBuffer;
+			npBuffer.cmd_id = CMD_CRASHED_RETIRED;
+			send_message_namedpipe(cfg, &npBuffer);
+		} else {
+			cout("Invalid command!\n");
+		}
+	} while (!cfg->die);
+	SetEvent(cfg->stop_passag);
 	return 0;
 }
 
@@ -127,17 +171,30 @@ DWORD WINAPI read_named_pipes(void *param) {
 			switch (npBuffer.cmd_id) {
 				case (CMD_BOARD):
 				{
-
+					SetEvent(cfg->board_event);
+					cfg->passenger.airplane = npBuffer.command.airplane;
+					cout("Passenger '%s' has boarded into airplane: '%s'\nDeparture: '%s' (x: %u, y: %u)\nDestination: '%s' (x: %u, y: %u)\n",
+						cfg->passenger.name, cfg->passenger.airplane.name, cfg->passenger.airport.name, cfg->passenger.airport.coordinates.x, cfg->passenger.airport.coordinates.y,
+						cfg->passenger.airport_end.name, cfg->passenger.airport_end.coordinates.x, cfg->passenger.airport_end.coordinates.y);
 					break;
 				}
 				case (CMD_FLYING):
 				{
-
+					cfg->passenger.airplane = npBuffer.command.airplane;
+					cout("Passenger '%s' is flying on airplane '%s' (x: %u, y: %u)\n", cfg->passenger.name, cfg->passenger.airplane.name, cfg->passenger.airplane.coordinates.x, cfg->passenger.airplane.coordinates.y);
+					break;
+				}
+				case (CMD_LANDED):
+				{
+					cout("Passenger '%s' arrived safely at its destination!\nAirport: '%s' (x: %u, y: %u)", cfg->passenger.name, cfg->passenger.airport_end.name, cfg->passenger.airport_end.coordinates.x, cfg->passenger.airport_end.coordinates.y);
+					cfg->die = TRUE;
 					break;
 				}
 				case (CMD_CRASHED_RETIRED):
 				{
-
+					cfg->passenger.airplane = npBuffer.command.airplane;
+					cout("Passenger '%s' has died in a horrible accident!\nAirplane '%s' crashed at: (x: %u, y: %u)", cfg->passenger.name, cfg->passenger.airplane.name, cfg->passenger.airplane.coordinates.x, cfg->passenger.airplane.coordinates.y);
+					cfg->die = TRUE;
 					break;
 				}
 				case (CMD_SHUTDOWN):
@@ -148,7 +205,6 @@ DWORD WINAPI read_named_pipes(void *param) {
 				}
 				default:
 				{
-					cout("Oops something went wrong!\n");
 					break;
 				}
 			}
@@ -166,21 +222,21 @@ BOOL receive_message_namedpipe(Config *cfg, NamedPipeBuffer *npBuffer) {
 	HANDLE handles[3];
 	handles[0] = cfg->stop_event;
 	handles[1] = cfg->stop_passag;
-	handles[2] = cfg->ovr_event;
-	BOOL success = ReadFile(cfg->passenger.pipe, npBuffer, sizeof(NamedPipeBuffer), &read, &cfg->overlapped);
+	handles[2] = cfg->passenger.pipe_event;
+	BOOL ignore = ReadFile(cfg->passenger.pipe, npBuffer, sizeof(NamedPipeBuffer), &read, &cfg->passenger.overlapped);
+	if (ignore) {}
 	DWORD res = WaitForMultipleObjects(3, handles, FALSE, INFINITE);
 	if (res == WAIT_OBJECT_0 || res == (WAIT_OBJECT_0 + 1)) {
 		// Ignore
 		cout("System is down!\n");
 		return FALSE;
 	} else {
-		GetOverlappedResult(cfg->passenger.pipe, &cfg->overlapped, &read, FALSE);
+		GetOverlappedResult(cfg->passenger.pipe, &cfg->passenger.overlapped, &read, FALSE);
 		if (read != sizeof(NamedPipeBuffer)) {
 			cout("Amount read is different from expected!\n");
 			return FALSE;
 		}
 	}
-	cout("Received: %u\n", npBuffer->cmd_id);
 	return TRUE;
 }
 
@@ -189,8 +245,8 @@ BOOL send_message_namedpipe(Config *cfg, NamedPipeBuffer *npBuffer) {
 	HANDLE handles[3];
 	handles[0] = cfg->stop_event;
 	handles[1] = cfg->stop_passag;
-	handles[2] = cfg->ovr_event;
-	BOOL success = WriteFile(cfg->passenger.pipe, npBuffer, sizeof(NamedPipeBuffer), &written, &cfg->overlapped);
+	handles[2] = cfg->passenger.pipe_event;
+	BOOL success = WriteFile(cfg->passenger.pipe, npBuffer, sizeof(NamedPipeBuffer), &written, &cfg->passenger.overlapped);
 	DWORD res = WaitForMultipleObjects(3, handles, FALSE, MAX_TIMEOUT_SEND_COMMAND);
 	if (res == WAIT_OBJECT_0 || res == (WAIT_OBJECT_0 + 1)) {
 		// Ignore
@@ -201,12 +257,11 @@ BOOL send_message_namedpipe(Config *cfg, NamedPipeBuffer *npBuffer) {
 		SetEvent(cfg->stop_passag);
 		return FALSE;
 	} else {
-		GetOverlappedResult(cfg->passenger.pipe, &cfg->overlapped, &written, FALSE);
+		GetOverlappedResult(cfg->passenger.pipe, &cfg->passenger.overlapped, &written, FALSE);
 		if (written != sizeof(NamedPipeBuffer)) {
 			cout("Amount written is different from expected!\n");
 			return FALSE;
 		}
 	}
-	cout("Sent: %u\n", npBuffer->cmd_id);
 	return TRUE;
 }

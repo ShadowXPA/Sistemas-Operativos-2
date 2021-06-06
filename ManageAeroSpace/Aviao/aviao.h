@@ -6,8 +6,6 @@
 #define DLL_AVIAO _T("SO2_TP_DLL_2021.dll")
 #define DLL_FUNC_MOVE "move"
 
-#define MAX_TIMEOUT_SEND_COMMAND 10000
-
 #define MTX_C _T("AviaoMutexC")
 #define MTX_A _T("AviaoMutexA")
 
@@ -16,7 +14,6 @@ typedef struct cfg {
 	int (*move) (int, int, int, int, int *, int *);
 	Airplane airplane;
 	SharedMemory *memory;				// MapViewOfFile
-	BOOL flying;						// Plane is flying
 	HMODULE hdll;
 	// Handles
 	HANDLE obj_map;

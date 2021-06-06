@@ -136,7 +136,7 @@ DWORD WINAPI read_command(void *param) {
 				cout("Stopping airplane...\n");
 				sb.cmd_id = CMD_CRASHED_RETIRED;
 				sb.from_id = cfg->airplane.pid;
-				sb.command.number = cfg->flying;
+				sb.command.number = cfg->airplane.flying;
 				send_command_sharedmemory(cfg, &sb);
 			} else if (icmp(buffer, "help") == 0) {
 				// show all commands
@@ -152,29 +152,8 @@ DWORD WINAPI read_command(void *param) {
 					cfg->airplane.coordinates.x, cfg->airplane.coordinates.y, cfg->airplane.airport_start.name, cfg->airplane.airport_start.id,
 					cfg->airplane.airport_start.coordinates.x, cfg->airplane.airport_start.coordinates.y, cfg->airplane.airport_end.name,
 					cfg->airplane.airport_end.id, cfg->airplane.airport_end.coordinates.x, cfg->airplane.airport_end.coordinates.y);
-			} else if (!cfg->flying) {
-				if (icmp(buffer, "destination") == 0) {
-					// define destination
-					Airport airport;
-					cout("Input airport name:\n > ");
-					cin(DEFAULT_CIN_BUFFER, buffer, MAX_NAME);
-					_cpy(airport.name, buffer, MAX_NAME);
-					//send airport to control
-					sb.from_id = cfg->airplane.pid;
-					sb.cmd_id = CMD_SEND_DESTINATION;
-					sb.command.airport = airport;
-					send_command_sharedmemory(cfg, &sb);
-				} else if (icmp(buffer, "board") == 0) {
-					if (!cfg->airplane.airport_end.id) {
-						// Destination has not been set
-						cout("Destination has not been set yet!\nCan not start boarding!\n");
-					} else {
-						//send confirmation to controler
-						sb.from_id = cfg->airplane.pid;
-						sb.cmd_id = CMD_BOARD;
-						send_command_sharedmemory(cfg, &sb);
-					}
-				} else if (icmp(buffer, "start") == 0) {
+			} else if (!cfg->airplane.flying) {
+				if (icmp(buffer, "start") == 0) {
 					if (!cfg->airplane.airport_end.id) {
 						// Destination has not been set
 						cout("Destination has not been set yet!\nCan not start the trip!\n");
@@ -184,16 +163,39 @@ DWORD WINAPI read_command(void *param) {
 						sb.cmd_id = CMD_LIFT_OFF;
 						send_command_sharedmemory(cfg, &sb);
 					}
+				} else if (!cfg->airplane.boarding) {
+					if (icmp(buffer, "destination") == 0) {
+						// define destination
+						Airport airport;
+						cout("Input airport name:\n > ");
+						cin(DEFAULT_CIN_BUFFER, buffer, MAX_NAME);
+						_cpy(airport.name, buffer, MAX_NAME);
+						//send airport to control
+						sb.from_id = cfg->airplane.pid;
+						sb.cmd_id = CMD_SEND_DESTINATION;
+						sb.command.airport = airport;
+						send_command_sharedmemory(cfg, &sb);
+					} else if (icmp(buffer, "board") == 0) {
+						if (!cfg->airplane.airport_end.id) {
+							// Destination has not been set
+							cout("Destination has not been set yet!\nCan not start boarding!\n");
+						} else {
+							//send confirmation to controler
+							sb.from_id = cfg->airplane.pid;
+							sb.cmd_id = CMD_BOARD;
+							cfg->airplane.boarding = TRUE;
+							sb.command.airplane = cfg->airplane;
+							send_command_sharedmemory(cfg, &sb);
+						}
+					}
 				} else {
-					cout("Invalid command!\n");
+					cout("Boaring is ongoing!\n");
 				}
 			} else {
 				cout("Airplane is flying!\n");
 			}
 		}
 	} while (!cfg->die);
-	//event to finish...
-	//SetEvent(cfg->stop_event);
 	SetEvent(cfg->stop_airplane);
 	return 0;
 }
@@ -222,7 +224,7 @@ DWORD WINAPI read_shared_memory(void *param) {
 					case (CMD_BOARD | CMD_OK):
 					{
 						//TODO receive number of passengers
-						cfg->airplane.capacity = buffer.command.number;
+						cfg->airplane.capacity += buffer.command.number;
 						cout("Number of passangers in the plane: %d", cfg->airplane.capacity);
 						break;
 					}
@@ -235,7 +237,7 @@ DWORD WINAPI read_shared_memory(void *param) {
 					case (CMD_LIFT_OFF | CMD_OK):
 					{
 						//receive OK from controler that I can start the trip
-						cfg->flying = TRUE;
+						cfg->airplane.flying = TRUE;
 						HANDLE thread = CreateThread(NULL, 0, flying, cfg, 0, NULL);
 						break;
 					}
@@ -248,7 +250,6 @@ DWORD WINAPI read_shared_memory(void *param) {
 					case (CMD_LANDED | CMD_OK):
 					{
 						cout("Received landing clearance from control.\n");
-						cfg->flying = FALSE;
 						cfg->airplane = buffer.command.airplane;
 						break;
 					}

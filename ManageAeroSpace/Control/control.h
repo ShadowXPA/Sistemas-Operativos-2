@@ -66,9 +66,6 @@ typedef struct cfg {
 	HANDLE sem_emptyA;					// Semaphore for empty spots in BufferA
 	HANDLE sem_itemA;					// Semaphore for items in BufferA
 	HANDLE mtx_A;						// Mutex for BufferA
-	// Pipe Handles
-	OVERLAPPED overlapped;
-	HANDLE ovr_event;
 } Config;
 
 BOOL init_config(Config *);
@@ -95,9 +92,11 @@ Airport *get_available_airport(Config *);
 Airplane *get_available_airplane(Config *);
 Passenger *get_available_passenger(Config *);
 Airport *get_airport_by_name(Config *, const TCHAR *);
-Airport *get_airport_by_name_or_radius(Config *, const TCHAR *, const Point, const unsigned int radius);
+Airport *get_airport_by_name_or_radius(Config *, const TCHAR *, const Point, const unsigned int);
 Airplane *get_airplane_by_name(Config *, const TCHAR *);
 Passenger *get_passenger_by_name(Config *, const TCHAR *);
+
+Airplane *get_airplane_by_airports(Config *, Airport *, Airport *);
 
 BOOL add_airport(Config *, Airport *);
 BOOL add_airplane(Config *, Airplane *);
@@ -115,5 +114,6 @@ BOOL receive_command_sharedmemory(Config *, SharedBuffer *);
 BOOL send_command_sharedmemory(Config *, SharedBuffer *);
 BOOL receive_message_namedpipe(PassengerConfig *, NamedPipeBuffer *);
 BOOL send_message_namedpipe(PassengerConfig *, NamedPipeBuffer *);
+void broadcast_message_namedpipe_in_airplane(PassengerConfig *, NamedPipeBuffer *, Airplane *);
 
 #endif // !CONTROL_H

@@ -50,6 +50,8 @@ extern "C" {
 
 #define DEFAULT_CIN_BUFFER "%49[^\n]"
 
+#define MAX_TIMEOUT_SEND_COMMAND 10000
+
 #define MTX_MEMORY _T("MTXSharedMemory")
 #define FILE_MAPPING_NAME _T("ControlAviao")
 #define SEM_EMPTY_C _T("SemaphoreEmptyC")
@@ -98,6 +100,8 @@ extern "C" {
 		Point coordinates;					// 0 ~ 1000
 		Airport airport_start;
 		Airport airport_end;
+		BOOL boarding;
+		BOOL flying;
 	} Airplane;
 
 	DLL_API typedef struct passenger {
@@ -109,6 +113,8 @@ extern "C" {
 		Airport airport_end;
 		Airplane airplane;					// PID 0 not in airplane, != 0 in an airplane
 		HANDLE pipe;
+		HANDLE pipe_event;
+		OVERLAPPED overlapped;
 	} Passenger;
 
 	DLL_API typedef union command {
