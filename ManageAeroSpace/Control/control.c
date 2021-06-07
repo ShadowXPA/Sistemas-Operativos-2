@@ -434,6 +434,7 @@ DWORD WINAPI read_shared_memory(void *param) {
 						npBuffer.cmd_id = CMD_LANDED;
 						EnterCriticalSection(&cfg->cs_passenger);
 						broadcast_message_namedpipe_in_airplane(cfg, &npBuffer, airplane);
+						remove_passenger_by_airplane(cfg, airplane);
 						LeaveCriticalSection(&cfg->cs_passenger);
 					}
 					LeaveCriticalSection(&cfg->cs_airplane);
@@ -455,6 +456,7 @@ DWORD WINAPI read_shared_memory(void *param) {
 							npBuffer.command.airplane = *airplane;
 							EnterCriticalSection(&cfg->cs_passenger);
 							broadcast_message_namedpipe_in_airplane(cfg, &npBuffer, airplane);
+							remove_passenger_by_airplane(cfg, airplane);
 							LeaveCriticalSection(&cfg->cs_passenger);
 						} else {
 							// Airplane was stationed at an passenger therefore the pilot retired
@@ -1080,6 +1082,15 @@ BOOL remove_passenger(Config *cfg, unsigned int id) {
 	}
 
 	return FALSE;
+}
+
+void remove_passenger_by_airplane(Config *cfg, Airplane *airplane) {
+	for (unsigned int i = (cfg->max_airport + cfg->max_airplane + 1); i <= (cfg->max_airport + cfg->max_airplane + cfg->max_passenger); i++) {
+		Passenger *passenger = get_passenger_by_id(cfg, i);
+		if (passenger != NULL && passenger->active && passenger->airplane.id == airplane->id) {
+			remove_passenger(cfg, i);
+		}
+	}
 }
 
 void print_airports(Config *cfg) {

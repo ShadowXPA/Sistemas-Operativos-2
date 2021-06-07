@@ -105,6 +105,7 @@ BOOL remove_airport(Config *, unsigned int);
 BOOL remove_airplane(Config *, unsigned int);
 BOOL _remove_airplane(Config *, Airplane *);
 BOOL remove_passenger(Config *, unsigned int);
+void remove_passenger_by_airplane(Config *, Airplane *);
 
 void print_airports(Config *);
 void print_airplane(Config *);
