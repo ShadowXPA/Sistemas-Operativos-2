@@ -4,10 +4,19 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 16.0.30503.244
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Control", "Control\Control.vcxproj", "{A15F2B34-CA56-4355-A605-909C3A05EB09}"
+	ProjectSection(ProjectDependencies) = postProject
+		{5204E480-3783-4406-9651-B49536BEB991} = {5204E480-3783-4406-9651-B49536BEB991}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Aviao", "Aviao\Aviao.vcxproj", "{000B187A-317F-4E33-93B5-3327F716E80F}"
+	ProjectSection(ProjectDependencies) = postProject
+		{5204E480-3783-4406-9651-B49536BEB991} = {5204E480-3783-4406-9651-B49536BEB991}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Passag", "Passag\Passag.vcxproj", "{8F3AA386-C32D-4B1E-ABB2-973840C574BC}"
+	ProjectSection(ProjectDependencies) = postProject
+		{5204E480-3783-4406-9651-B49536BEB991} = {5204E480-3783-4406-9651-B49536BEB991}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Utils", "Utils\Utils.vcxproj", "{5204E480-3783-4406-9651-B49536BEB991}"
 EndProject
