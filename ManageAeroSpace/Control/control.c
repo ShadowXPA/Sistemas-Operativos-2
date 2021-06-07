@@ -424,13 +424,13 @@ DWORD WINAPI read_shared_memory(void *param) {
 							airplane->name, airplane->id, airplane->pid, airplane->coordinates.x, airplane->coordinates.y);
 						airplane->airport_start = airplane->airport_end;
 						airplane->airport_end = (const Airport){ 0 };
-						//airplane->capacity = 0;
 						NamedPipeBuffer npBuffer;
 						npBuffer.cmd_id = CMD_LANDED;
 						EnterCriticalSection(&cfg->cs_passenger);
 						broadcast_message_namedpipe_in_airplane(cfg, &npBuffer, airplane);
 						remove_passenger_by_airplane(cfg, airplane);
 						LeaveCriticalSection(&cfg->cs_passenger);
+						airplane->capacity = 0;
 						buffer.cmd_id |= CMD_OK;
 						buffer.to_id = buffer.from_id;
 						buffer.from_id = 0;
