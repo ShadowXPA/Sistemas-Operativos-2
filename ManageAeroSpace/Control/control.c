@@ -424,6 +424,7 @@ DWORD WINAPI read_shared_memory(void *param) {
 							airplane->name, airplane->id, airplane->pid, airplane->coordinates.x, airplane->coordinates.y);
 						airplane->airport_start = airplane->airport_end;
 						airplane->airport_end = (const Airport){ 0 };
+						airplane->capacity = 0;
 						buffer.cmd_id |= CMD_OK;
 						buffer.to_id = buffer.from_id;
 						buffer.from_id = 0;
@@ -728,6 +729,12 @@ DWORD WINAPI handle_single_passenger(void *param) {
 		npBuffer.cmd_id = CMD_BOARD;
 		npBuffer.command.airplane = pCfg->passenger->airplane;
 		send_message_namedpipe(pCfg, &npBuffer);
+		SharedBuffer sb;
+		sb.cmd_id = CMD_BOARD;
+		sb.from_id = 0;
+		sb.to_id = pCfg->passenger->airplane.pid;
+		sb.command.number = 1;
+		send_command_sharedmemory(pCfg->cfg, &sb);
 	} else {
 		cout("Passenger '%s' arrived at the '%s' airport!\nPassenger is waiting '%u' seconds to go to '%s'.\n", pCfg->passenger->name, pCfg->passenger->airport.name, pCfg->passenger->wait_time, pCfg->passenger->airport_end.name);
 	}
