@@ -128,7 +128,7 @@ BOOL init_config2(Config *cfg, HINSTANCE hInst, int nCmdShow) {
 	cfg->wcApp.hIcon = LoadIcon(NULL, IDI_SHIELD);
 	cfg->wcApp.hIconSm = LoadIcon(NULL, IDI_SHIELD);
 	cfg->wcApp.hCursor = LoadCursor(NULL, IDC_ARROW);
-	cfg->wcApp.lpszMenuName;
+	cfg->wcApp.lpszMenuName = NULL;
 	cfg->wcApp.cbClsExtra = 0;
 	cfg->wcApp.cbWndExtra = sizeof(Config *);
 	cfg->wcApp.hbrBackground = (HBRUSH) GetStockObject(DKGRAY_BRUSH);
