@@ -2,6 +2,7 @@
 #define CONTROL_H
 
 #include "../Utils/utils.h"
+#include "resource.h"
 
 #define AIRPORT_RADIUS 10
 
@@ -19,7 +20,7 @@
 #define MTX_A _T("ControlMutexA")
 
 #define MAP_SLICE 250
-#define NUM_SLICE (MAP_SLICE / MAX_MAP)
+#define NUM_SLICE 4//(MAP_SLICE / MAX_MAP)
 
 #define CONTROL_NAME _T("Control")
 
@@ -141,5 +142,8 @@ void broadcast_message_namedpipe_in_airplane(PassengerConfig *, NamedPipeBuffer 
 int find_square(int, int);
 
 LRESULT CALLBACK handle_window_event(HWND, UINT, WPARAM, LPARAM);
+
+//Dialogs List
+BOOL CALLBACK DlgAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam);
 
 #endif // !CONTROL_H

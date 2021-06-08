@@ -125,10 +125,10 @@ BOOL init_config2(Config *cfg, HINSTANCE hInst, int nCmdShow) {
 	cfg->wcApp.lpszClassName = cfg->program_name;
 	cfg->wcApp.lpfnWndProc = handle_window_event;
 	cfg->wcApp.style = CS_HREDRAW | CS_VREDRAW;
-	cfg->wcApp.hIcon = LoadIcon(NULL, IDI_SHIELD);
-	cfg->wcApp.hIconSm = LoadIcon(NULL, IDI_SHIELD);
+	cfg->wcApp.hIcon = LoadIcon(cfg->hInst, MAKEINTRESOURCE(IDI_ICON1));
+	cfg->wcApp.hIconSm = LoadIcon(cfg->hInst, MAKEINTRESOURCE(IDI_ICON1));//LoadIcon(NULL, IDI_SHIELD);
 	cfg->wcApp.hCursor = LoadCursor(NULL, IDC_ARROW);
-	cfg->wcApp.lpszMenuName = NULL;
+	cfg->wcApp.lpszMenuName = MAKEINTRESOURCE(IDR_MENU1);
 	cfg->wcApp.cbClsExtra = 0;
 	cfg->wcApp.cbWndExtra = sizeof(Config *);
 	cfg->wcApp.hbrBackground = (HBRUSH) GetStockObject(DKGRAY_BRUSH);
@@ -1195,10 +1195,54 @@ int find_square(int x, int y) {
 }
 
 LRESULT CALLBACK handle_window_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+	Config* cfg = (Config*)GetWindowLongPtr(hWnd, 0);
 	switch (msg) {
 		case WM_CREATE:
 		{
 			// TODO
+			break;
+		}
+		case WM_COMMAND: {
+			switch (LOWORD(wParam)) {
+				case ID_AIRPORT_ADDAIRPORT: {
+					break;
+				}
+				case ID_AIRPORT_REMOVEAIRPORT: {
+					break;
+				}
+				case ID_LIST_AIRPORT: {
+					if (DialogBox(cfg->hInst, MAKEINTRESOURCE(IDD_DIALOGBAR), hWnd, DlgAirport) == -1) {
+						// se retornar -1 houve um erro
+
+					}
+					break;
+				}
+				case ID_LIST_AIRPLANE: {
+					break;
+				}
+				case ID_LIST_PASSENGER: {
+					break;
+				}
+				case ID_LIST_ALL: {
+					break;
+				}
+				case ID_TOGGLE: {
+					break;
+				}
+				case ID_VIEWCONFIG: {
+					break;
+				}
+				case ID_KICKAIRPLANE: {
+					break;
+				}
+				case ID_OTHER_ABOUT: {
+					break;
+				}
+				case ID_EXIT: {
+					PostQuitMessage(0);
+					break;
+				}
+			}
 			break;
 		}
 		case WM_PAINT:
@@ -1217,4 +1261,28 @@ LRESULT CALLBACK handle_window_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 	}
 
 	return 0;
+}
+
+BOOL CALLBACK DlgAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) {
+	char dlgStr[20];
+	switch (msg) {
+		case WM_INITDIALOG: {
+			SetDlgItemText(dlg, MAKEINTRESOURCE(IDC_STATIC), _T("\tola!\nMundo"));
+			
+			return TRUE;
+		}
+		case WM_COMMAND: {
+			switch (LOWORD(wParam)) {
+			case IDC_BUTTON1:
+				EndDialog(dlg, IDC_BUTTON1);
+				return TRUE;
+			default:
+				return TRUE;
+			}
+		}
+		case WM_CLOSE: {
+			EndDialog(dlg, IDC_BUTTON1);
+			return TRUE;
+		}
+	}
 }

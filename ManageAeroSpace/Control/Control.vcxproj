@@ -30,7 +30,8 @@
     <ResourceCompile Include="Control.rc" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="icon1.ico" />
+    <Image Include="..\..\Icon.ico" />
+    <Image Include="..\..\Icon.png" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
