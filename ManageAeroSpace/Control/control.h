@@ -18,7 +18,18 @@
 #define MTX_C _T("ControlMutexC")
 #define MTX_A _T("ControlMutexA")
 
+#define MAP_SLICE 250
+#define NUM_SLICE (MAP_SLICE / MAX_MAP)
+
+#define CONTROL_NAME _T("Control")
+
+typedef struct slice {
+	Point line;
+	Point column;
+} Slice;
+
 typedef struct cfg {
+	TCHAR *program_name;
 	BOOL die;
 	unsigned int max_airport;			// Maximum number of airports
 	unsigned int max_airplane;			// Maximum number of airplanes
@@ -66,9 +77,24 @@ typedef struct cfg {
 	HANDLE sem_emptyA;					// Semaphore for empty spots in BufferA
 	HANDLE sem_itemA;					// Semaphore for items in BufferA
 	HANDLE mtx_A;						// Mutex for BufferA
+	// Windows
+	HINSTANCE hInst;
+	HWND hWnd;
+	MSG lpMsg;
+	WNDCLASSEX wcApp;
+	Slice *slices;
 } Config;
 
+typedef struct passengercfg {
+	Config *cfg;
+	Passenger *passenger;
+} PassengerConfig;
+
+void init_windows(Config *);
+
 BOOL init_config(Config *);
+BOOL init_config2(Config *, HINSTANCE, int nCmdShow);
+
 void end_config(Config *);
 void init_control(Config *);
 
@@ -77,11 +103,6 @@ DWORD WINAPI read_shared_memory(void *);
 DWORD WINAPI read_named_pipes(void *);
 DWORD WINAPI handle_heartbeat(void *);
 DWORD WINAPI handle_single_passenger(void *);
-
-typedef struct passengercfg {
-	Config *cfg;
-	Passenger *passenger;
-} PassengerConfig;
 
 void *get_by_id(Config *, unsigned int);
 Airport *get_airport_by_id(Config *, unsigned int);
@@ -116,5 +137,9 @@ BOOL send_command_sharedmemory(Config *, SharedBuffer *);
 BOOL receive_message_namedpipe(PassengerConfig *, NamedPipeBuffer *);
 BOOL send_message_namedpipe(PassengerConfig *, NamedPipeBuffer *);
 void broadcast_message_namedpipe_in_airplane(PassengerConfig *, NamedPipeBuffer *, Airplane *);
+
+int find_square(int, int);
+
+LRESULT CALLBACK handle_window_event(HWND, UINT, WPARAM, LPARAM);
 
 #endif // !CONTROL_H

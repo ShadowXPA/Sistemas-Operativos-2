@@ -1,0 +1,101 @@
+// Microsoft Visual C++ generated resource script.
+//
+#pragma code_page(65001)
+
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include "winres.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (United States) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE 
+BEGIN
+    "#include ""winres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Menu
+//
+
+IDR_MENU1 MENU
+BEGIN
+    POPUP "Airport"
+    BEGIN
+        MENUITEM "Add airport",                 ID_AIRPORT_ADDAIRPORT
+        MENUITEM "Remove airport",              ID_AIRPORT_REMOVEAIRPORT
+    END
+    POPUP "List"
+    BEGIN
+        MENUITEM "Airport",                     ID_LIST_AIRPORT
+        MENUITEM "Airplane",                    ID_LIST_AIRPLANE
+        MENUITEM "Passenger",                   ID_LIST_PASSENGER
+        MENUITEM "All",                         ID_LIST_ALL
+    END
+    POPUP "Other"
+    BEGIN
+        MENUITEM "Toggle",                      ID_TOGGLE
+        MENUITEM "View config",                 ID_VIEWCONFIG
+        MENUITEM "Kick airplane",               ID_KICKAIRPLANE
+        MENUITEM "About",                       ID_OTHER_ABOUT
+        MENUITEM "Exit",                        ID_EXIT
+    END
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+
+#endif    // English (United States) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+

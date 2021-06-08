@@ -67,8 +67,20 @@ BOOL init_config(Config *cfg) {
 	cfg->airplanes = calloc(cfg->max_airplane, sizeof(Airplane));
 	cfg->passengers = calloc(cfg->max_passenger, sizeof(Passenger));
 
-	if (cfg->airports == NULL || cfg->airplanes == NULL || cfg->passengers == NULL) {
+	cfg->slices = calloc(NUM_SLICE * NUM_SLICE, sizeof(Slice));
+
+	if (cfg->airports == NULL || cfg->airplanes == NULL || cfg->passengers == NULL || cfg->slices == NULL) {
 		return FALSE;
+	}
+
+	int k = 0;
+	for (int i = 0; i < NUM_SLICE; i++) {
+		for (int j = 0; j < NUM_SLICE; j++) {
+			cfg->slices[k].line.x = MAP_SLICE * j;
+			cfg->slices[k].line.y = MAP_SLICE * i;
+			cfg->slices[k].column.x = MAP_SLICE * (j + 1);
+			cfg->slices[k++].column.y = MAP_SLICE * (i + 1);
+		}
 	}
 
 	unsigned int index = 1;
@@ -101,10 +113,45 @@ BOOL init_config(Config *cfg) {
 	return TRUE;
 }
 
+BOOL init_config2(Config *cfg, HINSTANCE hInst, int nCmdShow) {
+	if (!init_config(cfg)) return FALSE;
+
+	cfg->program_name = CONTROL_NAME;
+
+	cfg->hInst = hInst;
+
+	cfg->wcApp.cbSize = sizeof(WNDCLASSEX);
+	cfg->wcApp.hInstance = cfg->hInst;
+	cfg->wcApp.lpszClassName = cfg->program_name;
+	cfg->wcApp.lpfnWndProc = handle_window_event;
+	cfg->wcApp.style = CS_HREDRAW | CS_VREDRAW;
+	cfg->wcApp.hIcon = LoadIcon(NULL, IDI_SHIELD);
+	cfg->wcApp.hIconSm = LoadIcon(NULL, IDI_SHIELD);
+	cfg->wcApp.hCursor = LoadCursor(NULL, IDC_ARROW);
+	cfg->wcApp.lpszMenuName;
+	cfg->wcApp.cbClsExtra = 0;
+	cfg->wcApp.cbWndExtra = sizeof(Config *);
+	cfg->wcApp.hbrBackground = (HBRUSH) GetStockObject(DKGRAY_BRUSH);
+
+	if (!RegisterClassEx(&cfg->wcApp)) {
+		return FALSE;
+	}
+
+	cfg->hWnd = CreateWindow(cfg->program_name, CONTROL_NAME, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, (HWND) HWND_DESKTOP, (HMENU) NULL, (HINSTANCE) cfg->hInst, 0);
+
+	SetWindowLongPtr(cfg->hWnd, 0, (LONG_PTR) cfg);
+
+	ShowWindow(cfg->hWnd, nCmdShow);
+	UpdateWindow(cfg->hWnd);
+
+	return TRUE;
+}
+
 void end_config(Config *cfg) {
 	free(cfg->airports);
 	free(cfg->airplanes);
 	free(cfg->passengers);
+	free(cfg->slices);
 	UnmapViewOfFile(cfg->memory);
 	CloseHandle(cfg->obj_map);
 	ReleaseMutex(cfg->mtx_instance);
@@ -124,8 +171,6 @@ void end_config(Config *cfg) {
 }
 
 void init_control(Config *cfg) {
-	// init window (Win32)
-
 	// init shared memory
 	cfg->obj_map = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, sizeof(SharedMemory), FILE_MAPPING_NAME);
 	if (cfg->obj_map == NULL)
@@ -139,9 +184,9 @@ void init_control(Config *cfg) {
 	// init threads:
 	HANDLE thread[3];
 	// read command
-	HANDLE threadCmd = CreateThread(NULL, 0, read_command, cfg, 0, NULL);
-	if (threadCmd == NULL)
-		return;
+	//HANDLE threadCmd = CreateThread(NULL, 0, read_command, cfg, 0, NULL);
+	//if (threadCmd == NULL)
+	//	return;
 	// read shared memory
 	thread[0] = CreateThread(NULL, 0, read_shared_memory, cfg, 0, NULL);
 	if (thread[0] == NULL)
@@ -155,12 +200,22 @@ void init_control(Config *cfg) {
 	if (thread[2] == NULL)
 		return;
 
-	WaitForMultipleObjects(3, thread, TRUE, INFINITE);
+	//WaitForMultipleObjects(3, thread, TRUE, INFINITE);
 
-	CloseHandle(threadCmd);
+	//CloseHandle(threadCmd);
 	CloseHandle(thread[0]);
 	CloseHandle(thread[1]);
 	CloseHandle(thread[2]);
+
+	// init window (Win32)
+	init_windows(cfg);
+}
+
+void init_windows(Config *cfg) {
+	while (GetMessage(&cfg->lpMsg, NULL, 0, 0)) {
+		TranslateMessage(&cfg->lpMsg);
+		DispatchMessage(&cfg->lpMsg);
+	}
 }
 
 DWORD WINAPI read_command(void *param) {
@@ -294,7 +349,7 @@ DWORD WINAPI read_shared_memory(void *param) {
 	SharedBuffer buffer;
 	while (!cfg->die) {
 		// Receive new airplane										// DONE
-		// Airplane is accepting passengers							// TODO
+		// Airplane is accepting passengers							// DONE
 		// Airplane is starting lift off							// DONE
 		// Airplane is moving (Coordinates)							// DONE
 		// Airplane is de-touring or waiting (Avoid collision)		// DONE
@@ -470,7 +525,6 @@ DWORD WINAPI read_shared_memory(void *param) {
 				}
 				case CMD_BOARD:
 				{
-					// TODO
 					EnterCriticalSection(&cfg->cs_airplane);
 					Airplane *airplane = get_airplane_by_pid(cfg, buffer.from_id);
 					if (airplane != NULL && airplane->active) {
@@ -598,9 +652,6 @@ DWORD WINAPI read_named_pipes(void *param) {
 						EnterCriticalSection(&cfg->cs_airplane);
 						EnterCriticalSection(&cfg->cs_passenger);
 						if (add_passenger(cfg, p, &npBuffer.command.passenger)) {
-							// TODO check if there is any airplane that goes to destination and is not full
-							// if so send CMD_BOARD
-							// TODO TEST^
 							npBuffer.cmd_id |= CMD_OK;
 							npBuffer.command.passenger = *p;
 							send_message_namedpipe(pCfg, &npBuffer);
@@ -1132,4 +1183,38 @@ void print_passenger(Config *cfg) {
 			cout("\n");
 		}
 	}
+}
+
+int find_square(int x, int y) {
+	if (x < 0 || x > MAX_MAP || y < 0 || y > MAX_MAP)
+		return -1;
+
+	int indexX = x / MAP_SLICE;
+	int indexY = y / MAP_SLICE;
+	return NUM_SLICE * indexY + indexX;
+}
+
+LRESULT CALLBACK handle_window_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+	switch (msg) {
+		case WM_CREATE:
+		{
+			// TODO
+			break;
+		}
+		case WM_PAINT:
+		{
+			// TODO
+			break;
+		}
+		case WM_CLOSE:
+		{
+			// TODO
+			PostQuitMessage(0);
+			break;
+		}
+		default:
+			return DefWindowProc(hWnd, msg, wParam, lParam);
+	}
+
+	return 0;
 }

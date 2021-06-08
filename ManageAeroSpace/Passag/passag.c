@@ -89,12 +89,10 @@ void init_passag(Config *cfg) {
 		cfg->passenger.airplane = p.airplane;
 		cfg->passenger.airport = p.airport;
 		cfg->passenger.airport_end = p.airport_end;
-		// TODO prettier message...
-		// Departure: ...
-		// Landing: ...
-		// Airplane: ?
-		// Boarded?
 		cout("Connected!\n");
+		cout("Departure: '%s' (x: %u, y: %u)\nLanding: '%s' (x: %u, y: %u)\n",
+			cfg->passenger.airport.name, cfg->passenger.airport.coordinates.x, cfg->passenger.airport.coordinates.y,
+			cfg->passenger.airport_end.name, cfg->passenger.airport_end.coordinates.x, cfg->passenger.airport_end.coordinates.y);
 	} else if (buff.cmd_id == (CMD_HELLO | CMD_ERROR)) {
 		cout("Error from control: '%s'\n", buff.command.str);
 		return;
