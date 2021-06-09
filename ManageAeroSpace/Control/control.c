@@ -1198,62 +1198,74 @@ int find_square(int x, int y) {
 }
 
 LRESULT CALLBACK handle_window_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
-	Config* cfg = (Config*)GetWindowLongPtr(hWnd, 0);
+	Config *cfg = (Config *) GetWindowLongPtr(hWnd, 0);
 	switch (msg) {
 		case WM_CREATE:
 		{
 			// TODO
 			break;
 		}
-		case WM_COMMAND: {
+		case WM_COMMAND:
+		{
 			switch (LOWORD(wParam)) {
-				case ID_AIRPORT_ADDAIRPORT: {
-					if (DialogBox(cfg->hInst, MAKEINTRESOURCE(IDD_FORMVIEW), hWnd, DlgAddAirpot) == -1) {
+				case ID_AIRPORT_ADDAIRPORT:
+				{
+					//INT_PTR res = DialogBox(NULL, MAKEINTRESOURCE(IDD_FORMVIEW), hWnd, DlgAddAirport);
+					HWND dlg = CreateDialog(cfg->hInst, MAKEINTRESOURCE(IDD_FORMVIEW), hWnd, DlgAddAirport);
+					ShowWindow(dlg, SW_SHOW);
+					UpdateWindow(dlg);
+					break;
+				}
+				case ID_AIRPORT_REMOVEAIRPORT:
+				{
+					if (DialogBox(NULL, MAKEINTRESOURCE(IDD_FORMVIEW), hWnd, DlgRemoveAirport) == -1) {
 						// se retornar -1 houve um erro
 
 					}
 					break;
 				}
-				case ID_AIRPORT_REMOVEAIRPORT: {
-					if (DialogBox(cfg->hInst, MAKEINTRESOURCE(IDD_FORMVIEW), hWnd, DlgRemoveAirport) == -1) {
+				case ID_LIST_AIRPORT:
+				{
+					if (DialogBox(NULL, MAKEINTRESOURCE(IDD_DIALOGBAR), hWnd, DlgAirport) == -1) {
 						// se retornar -1 houve um erro
 
 					}
 					break;
 				}
-				case ID_LIST_AIRPORT: {
-					if (DialogBox(cfg->hInst, MAKEINTRESOURCE(IDD_DIALOGBAR), hWnd, DlgAirport) == -1) {
-						// se retornar -1 houve um erro
-
-					}
+				case ID_LIST_AIRPLANE:
+				{
 					break;
 				}
-				case ID_LIST_AIRPLANE: {
+				case ID_LIST_PASSENGER:
+				{
 					break;
 				}
-				case ID_LIST_PASSENGER: {
+				case ID_LIST_ALL:
+				{
 					break;
 				}
-				case ID_LIST_ALL: {
-					break;
-				}
-				case ID_TOGGLE: {
+				case ID_TOGGLE:
+				{
 					WaitForSingleObject(cfg->mtx_memory, INFINITE);
 					cfg->memory->accepting_planes = !cfg->memory->accepting_planes;
 					ReleaseMutex(cfg->mtx_memory);
 					UINT result = MessageBox(hWnd, (cfg->memory->accepting_planes ? _T("Accepting airplanes.") : _T("Not accepting airplanes.")), _T("Toggle"), MB_OK | MB_TASKMODAL | MB_ICONEXCLAMATION);
 					break;
 				}
-				case ID_VIEWCONFIG: {
+				case ID_VIEWCONFIG:
+				{
 					break;
 				}
-				case ID_KICKAIRPLANE: {
+				case ID_KICKAIRPLANE:
+				{
 					break;
 				}
-				case ID_OTHER_ABOUT: {
+				case ID_OTHER_ABOUT:
+				{
 					break;
 				}
-				case ID_EXIT: {
+				case ID_EXIT:
+				{
 					UINT answer = MessageBox(hWnd, _T("Aplicação toda XPTO.\nFeita por:\n ShadøwXPA.\nDeseja sair?."), _T("Olá!"), MB_YESNO | MB_TASKMODAL | MB_ICONEXCLAMATION);
 					if (answer == IDYES) {
 						PostQuitMessage(0);
@@ -1284,34 +1296,41 @@ LRESULT CALLBACK handle_window_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 	return 0;
 }
 
-BOOL CALLBACK DlgAddAirpot(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) {
-	return TRUE;
+BOOL CALLBACK DlgAddAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) {
+	return FALSE;
 }
 
 BOOL CALLBACK DlgRemoveAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) {
-	return TRUE;
+	return FALSE;
 }
 
 BOOL CALLBACK DlgAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) {
 	char dlgStr[20];
 	switch (msg) {
-		case WM_INITDIALOG: {
-			//SetDlgItemText(dlg, MAKEINTRESOURCE(IDC_STATIC), _T("\tola!\nMundo"));
-			return TRUE;
-		}
-		case WM_COMMAND: {
-			switch (LOWORD(wParam)) {
-			case IDC_BUTTON1: {
+		case WM_INITDIALOG:
+		{
+			if (GetWindowLong(dlg, GWL_STYLE) != WS_VISIBLE) {
 				EndDialog(dlg, IDC_BUTTON1);
 				return TRUE;
 			}
-			default:
-				return TRUE;
+			SetDlgItemText(dlg, MAKEINTRESOURCE(IDC_TEXT_TEST), _T("\tola!\nMundo"));
+			return TRUE;
+		}
+		case WM_COMMAND:
+		{
+			switch (LOWORD(wParam)) {
+				case IDC_BUTTON1:
+				{
+					EndDialog(dlg, IDC_BUTTON1);
+					return TRUE;
+				}
 			}
 		}
-		case WM_CLOSE: {
+		case WM_CLOSE:
+		{
 			EndDialog(dlg, IDC_BUTTON1);
 			return TRUE;
 		}
 	}
+	return FALSE;
 }

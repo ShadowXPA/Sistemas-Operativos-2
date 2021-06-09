@@ -143,7 +143,7 @@ int find_square(int, int);
 
 LRESULT CALLBACK handle_window_event(HWND, UINT, WPARAM, LPARAM);
 
-BOOL CALLBACK DlgAddAirpot(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam);
+BOOL CALLBACK DlgAddAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam);
 BOOL CALLBACK DlgRemoveAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam);
 //Dialogs List
 BOOL CALLBACK DlgAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam);
