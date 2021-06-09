@@ -1213,7 +1213,6 @@ LRESULT CALLBACK handle_window_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 					//INT_PTR res = DialogBox(NULL, MAKEINTRESOURCE(IDD_FORMVIEW), hWnd, DlgAddAirport);
 					HWND dlg = CreateDialog(cfg->hInst, MAKEINTRESOURCE(IDD_FORMVIEW), hWnd, DlgAddAirport);
 					ShowWindow(dlg, SW_SHOW);
-					UpdateWindow(dlg);
 					break;
 				}
 				case ID_AIRPORT_REMOVEAIRPORT:
@@ -1297,10 +1296,56 @@ LRESULT CALLBACK handle_window_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 }
 
 BOOL CALLBACK DlgAddAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) {
+	switch (msg) {
+		case WM_INITDIALOG:
+		{
+			return TRUE;
+		}
+		case WM_COMMAND:
+		{
+			switch (LOWORD(wParam)) {
+				case IDC_BUTTON1:
+				{
+					EndDialog(dlg, IDC_BUTTON1);
+					return TRUE;
+				}
+				default:
+					return TRUE;
+			}
+		}
+		case WM_CLOSE:
+		{
+			EndDialog(dlg, IDC_BUTTON1);
+			return TRUE;
+		}
+	}
 	return FALSE;
 }
 
 BOOL CALLBACK DlgRemoveAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) {
+	switch (msg) {
+		case WM_INITDIALOG:
+		{
+			return TRUE;
+		}
+		case WM_COMMAND:
+		{
+			switch (LOWORD(wParam)) {
+				case IDC_BUTTON1:
+				{
+					EndDialog(dlg, IDC_BUTTON1);
+					return TRUE;
+				}
+				default:
+					return TRUE;
+			}
+		}
+		case WM_CLOSE:
+		{
+			EndDialog(dlg, IDC_BUTTON1);
+			return TRUE;
+		}
+	}
 	return FALSE;
 }
 
