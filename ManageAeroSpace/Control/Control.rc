@@ -92,12 +92,20 @@ BEGIN
         BOTTOMMARGIN, 43
     END
 
-    IDD_FORMVIEW, DIALOG
+    IDD_ADD_AIRPORT, DIALOG
     BEGIN
         LEFTMARGIN, 7
         RIGHTMARGIN, 179
         TOPMARGIN, 7
         BOTTOMMARGIN, 87
+    END
+
+    IDD_DIALOGBAR1, DIALOG
+    BEGIN
+        LEFTMARGIN, 6
+        RIGHTMARGIN, 324
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 62
     END
 END
 #endif    // APSTUDIO_INVOKED
@@ -113,8 +121,8 @@ STYLE DS_SYSMODAL | DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | DS_CENTER | WS_PO
 CAPTION "List"
 FONT 8, "MS Shell Dlg", 400, 0, 0x0
 BEGIN
-PUSHBUTTON      "Ok", IDC_BUTTON1, 273, 29, 50, 14
-LTEXT           "", IDC_TEXT_TEST, 6, 7, 317, 17
+    PUSHBUTTON      "Ok",IDC_BUTTON1,273,29,50,14
+    LTEXT           "",IDC_TEXT_TEST,6,7,317,17
 END
 
 IDD_ADD_AIRPORT DIALOGEX 0, 0, 185, 93
@@ -123,11 +131,24 @@ EXSTYLE WS_EX_TOPMOST | WS_EX_APPWINDOW
 CAPTION "Add airport"
 FONT 8, "MS Shell Dlg", 400, 0, 0x0
 BEGIN
-PUSHBUTTON      "Confirmar", IDC_BUTTON1, 128, 72, 50, 14
-PUSHBUTTON      "Cancelar", IDC_BUTTON2, 65, 72, 50, 14
-EDITTEXT        IDC_EDIT1, 21, 23, 138, 14, ES_AUTOHSCROLL
-CTEXT           "Enter the name of the airport:", IDC_STATIC, 21, 14, 98, 8
-LTEXT           "Enter the coordinates", IDC_STATIC, 21, 38, 70, 8
+    PUSHBUTTON      "Confirmar",IDC_BUTTON1,128,72,50,14
+    PUSHBUTTON      "Cancelar",IDC_BUTTON2,65,72,50,14
+    EDITTEXT        IDC_EDIT1,21,23,138,14,ES_AUTOHSCROLL
+    CTEXT           "Enter the name of the airport:",IDC_STATIC,21,14,98,8
+    LTEXT           "Enter the coordinates:",IDC_STATIC,21,38,73,8
+    LTEXT           "X:",IDC_STATIC,23,48,8,8
+    LTEXT           "Y:",IDC_STATIC,86,49,8,8
+    EDITTEXT        IDC_EDIT2,33,46,40,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT3,95,47,40,14,ES_AUTOHSCROLL
+END
+
+IDD_DIALOGBAR1 DIALOGEX 0, 0, 331, 69
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION
+FONT 8, "MS Shell Dlg", 400, 0, 0x0
+BEGIN
+    PUSHBUTTON      "Yes",IDC_BUTTON1,274,48,50,14
+    PUSHBUTTON      "No",IDC_BUTTON2,209,48,50,14
+    EDITTEXT        IDC_EDIT1,6,7,318,28,ES_AUTOHSCROLL
 END
 
 
@@ -148,7 +169,16 @@ BEGIN
     0, 0, 0, 0,
     0, 0, 0, 0,
     100, 0, 0, 0,
+    0, 0, 0, 0,
+    0, 0, 0, 0,
+    0, 0, 0, 0,
+    0, 0, 0, 0,
     0, 0, 0, 0
+END
+
+IDD_DIALOGBAR1 AFX_DIALOG_LAYOUT
+BEGIN
+    0
 END
 
 #endif    // English (United States) resources
@@ -160,6 +190,51 @@ END
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_PTG)
 LANGUAGE LANG_PORTUGUESE, SUBLANG_PORTUGUESE
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO
+BEGIN
+    IDD_DIALOG1, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 302
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 169
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_DIALOG1 DIALOGEX 0, 0, 309, 176
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Dialog"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,198,155,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,252,155,50,14
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// AFX_DIALOG_LAYOUT
+//
+
+IDD_DIALOG1 AFX_DIALOG_LAYOUT
+BEGIN
+    0
+END
+
 
 /////////////////////////////////////////////////////////////////////////////
 //

@@ -146,6 +146,9 @@ LRESULT CALLBACK handle_window_event(HWND, UINT, WPARAM, LPARAM);
 BOOL CALLBACK DlgAddAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam);
 BOOL CALLBACK DlgRemoveAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam);
 //Dialogs List
-BOOL CALLBACK DlgAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam);
+BOOL CALLBACK DlgListAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam);
+BOOL CALLBACK DlgListAirplane(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam);
+BOOL CALLBACK DlgListPassenger(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam);
+BOOL CALLBACK DlgListAll(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam);
 
 #endif // !CONTROL_H
