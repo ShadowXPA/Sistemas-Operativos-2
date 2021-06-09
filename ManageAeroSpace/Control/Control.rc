@@ -156,7 +156,7 @@ LANGUAGE LANG_PORTUGUESE, SUBLANG_PORTUGUESE
 // PNG
 //
 
-IDB_PNG1                PNG                     "C:\\Users\\lfida\\Desktop\\ISEC 2020-2021\\SO2\\TP\\Icon.png"
+IDB_PNG1                PNG                     "..\\..\\Icon.png"
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -166,7 +166,7 @@ IDB_PNG1                PNG                     "C:\\Users\\lfida\\Desktop\\ISEC
 
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
-IDI_ICON1               ICON                    "C:\\Users\\lfida\\Desktop\\ISEC 2020-2021\\SO2\\TP\\Icon.ico"
+IDI_ICON1               ICON                    "..\\..\\Icon.ico"
 
 #endif    // Portuguese (Portugal) resources
 /////////////////////////////////////////////////////////////////////////////
