@@ -19,8 +19,8 @@
 #define MTX_C _T("ControlMutexC")
 #define MTX_A _T("ControlMutexA")
 
-#define MAP_SLICE 250
-#define NUM_SLICE 4//(MAP_SLICE / MAX_MAP)
+#define MAP_SLICE 500
+#define NUM_SLICE 2//(MAP_SLICE / MAX_MAP)
 
 #define CONTROL_NAME _T("Control")
 
@@ -137,7 +137,7 @@ BOOL receive_command_sharedmemory(Config *, SharedBuffer *);
 BOOL send_command_sharedmemory(Config *, SharedBuffer *);
 BOOL receive_message_namedpipe(PassengerConfig *, NamedPipeBuffer *);
 BOOL send_message_namedpipe(PassengerConfig *, NamedPipeBuffer *);
-void broadcast_message_namedpipe_in_airplane(PassengerConfig *, NamedPipeBuffer *, Airplane *);
+void broadcast_message_namedpipe_in_airplane(Config *, NamedPipeBuffer *, Airplane *);
 
 int find_square(int, int);
 
@@ -150,5 +150,7 @@ BOOL CALLBACK DlgListAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam);
 BOOL CALLBACK DlgListAirplane(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam);
 BOOL CALLBACK DlgListPassenger(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam);
 BOOL CALLBACK DlgListAll(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam);
+
+void update_double_dc(HDC double_dc, HWND hWnd, int xPos, int yPos, int max_width, int max_height);
 
 #endif // !CONTROL_H

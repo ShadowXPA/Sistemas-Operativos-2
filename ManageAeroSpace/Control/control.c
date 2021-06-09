@@ -1,6 +1,5 @@
 #include "control.h"
-
-HWND janelaGlobal;
+#include <windowsx.h>
 
 BOOL init_config(Config *cfg) {
 	memset(cfg, 0, sizeof(Config));
@@ -139,8 +138,7 @@ BOOL init_config2(Config *cfg, HINSTANCE hInst, int nCmdShow) {
 		return FALSE;
 	}
 
-	janelaGlobal = CreateWindow(cfg->program_name, CONTROL_NAME, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, (HWND) HWND_DESKTOP, (HMENU) NULL, (HINSTANCE) cfg->hInst, 0);
-	cfg->hWnd = janelaGlobal;
+	cfg->hWnd = CreateWindow(cfg->program_name, CONTROL_NAME, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, (HWND) HWND_DESKTOP, (HMENU) NULL, (HINSTANCE) cfg->hInst, 0);
 
 	SetWindowLongPtr(cfg->hWnd, 0, (LONG_PTR) cfg);
 
@@ -1201,11 +1199,34 @@ int find_square(int x, int y) {
 }
 
 LRESULT CALLBACK handle_window_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
-	Config *cfg = (Config *) GetWindowLongPtr(hWnd, 0);
+	static Config *cfg = NULL;
+	static int height, width, max_height, max_width;
+	static RECT rect;
+	static HDC hdc, double_dc;
+	static HBITMAP double_bmp;
+	static PAINTSTRUCT paint;
+	static int xPos = 0;
+	static int yPos = 0;
+
 	switch (msg) {
 		case WM_CREATE:
 		{
 			// TODO
+			GetWindowRect(hWnd, &rect);
+			height = rect.bottom - rect.top;
+			width = rect.right - rect.left;
+			max_height = GetSystemMetrics(SM_CYSCREEN);
+			max_width = GetSystemMetrics(SM_CXSCREEN);
+
+			hdc = GetDC(hWnd);
+			double_dc = CreateCompatibleDC(hdc);
+			double_bmp = CreateCompatibleBitmap(hdc, max_width, max_height);
+			SelectObject(double_dc, double_bmp);
+			SelectObject(double_dc, GetStockObject(DKGRAY_BRUSH));
+			PatBlt(double_dc, 0, 0, max_width, max_height, PATCOPY);
+			SelectObject(double_dc, GetStockObject(WHITE_BRUSH));
+			PatBlt(double_dc, 100, 100, 500, 500, PATCOPY);
+			ReleaseDC(hWnd, hdc);
 			break;
 		}
 		case WM_COMMAND:
@@ -1213,32 +1234,32 @@ LRESULT CALLBACK handle_window_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 			switch (LOWORD(wParam)) {
 				case ID_AIRPORT_ADDAIRPORT:
 				{
-					DialogBoxParam(cfg->hInst, MAKEINTRESOURCE(IDD_FORMVIEW), hWnd, DlgAddAirport, cfg);
+					DialogBoxParam(cfg->hInst, MAKEINTRESOURCE(IDD_FORMVIEW), hWnd, DlgAddAirport, (LPARAM) cfg);
 					break;
 				}
 				case ID_AIRPORT_REMOVEAIRPORT:
 				{
-					DialogBoxParam(cfg->hInst, MAKEINTRESOURCE(IDD_FORMVIEW), hWnd, DlgRemoveAirport, cfg);
+					DialogBoxParam(cfg->hInst, MAKEINTRESOURCE(IDD_FORMVIEW), hWnd, DlgRemoveAirport, (LPARAM) cfg);
 					break;
 				}
 				case ID_LIST_AIRPORT:
 				{
-					DialogBoxParam(cfg->hInst, MAKEINTRESOURCE(IDD_DIALOGBAR), hWnd, DlgListAirport, cfg);
+					DialogBoxParam(cfg->hInst, MAKEINTRESOURCE(IDD_DIALOGBAR), hWnd, DlgListAirport, (LPARAM) cfg);
 					break;
 				}
 				case ID_LIST_AIRPLANE:
 				{
-					DialogBoxParam(cfg->hInst, MAKEINTRESOURCE(IDD_DIALOGBAR), hWnd, DlgListAirplane, cfg);
+					DialogBoxParam(cfg->hInst, MAKEINTRESOURCE(IDD_DIALOGBAR), hWnd, DlgListAirplane, (LPARAM) cfg);
 					break;
 				}
 				case ID_LIST_PASSENGER:
 				{
-					DialogBoxParam(cfg->hInst, MAKEINTRESOURCE(IDD_DIALOGBAR), hWnd, DlgListPassenger, cfg);
+					DialogBoxParam(cfg->hInst, MAKEINTRESOURCE(IDD_DIALOGBAR), hWnd, DlgListPassenger, (LPARAM) cfg);
 					break;
 				}
 				case ID_LIST_ALL:
 				{
-					DialogBoxParam(cfg->hInst, MAKEINTRESOURCE(IDD_DIALOGBAR), hWnd, DlgListAll, cfg);
+					DialogBoxParam(cfg->hInst, MAKEINTRESOURCE(IDD_DIALOGBAR), hWnd, DlgListAll, (LPARAM) cfg);
 					break;
 				}
 				case ID_TOGGLE:
@@ -1263,7 +1284,7 @@ LRESULT CALLBACK handle_window_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 				}
 				case ID_EXIT:
 				{
-					UINT answer = MessageBox(hWnd, _T("Deseja sair?."), _T("Olá!"), MB_YESNO | MB_TASKMODAL | MB_ICONEXCLAMATION);
+					UINT answer = MessageBox(hWnd, _T("Do you wish to exit?"), _T("Exiting application!"), MB_YESNO | MB_TASKMODAL | MB_ICONEXCLAMATION);
 					if (answer == IDYES) {
 						PostQuitMessage(0);
 					}
@@ -1272,14 +1293,31 @@ LRESULT CALLBACK handle_window_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 			}
 			break;
 		}
+		case WM_MOUSEMOVE:
+		{
+			xPos = GET_X_LPARAM(lParam);
+			yPos = GET_Y_LPARAM(lParam);
+			update_double_dc(double_dc, hWnd, xPos, yPos, max_width, max_height);
+			break;
+		}
+		case WM_ERASEBKGND:
+		{
+			break;
+		}
 		case WM_PAINT:
 		{
+			if (cfg == NULL) {
+				cfg = (Config *) GetWindowLongPtr(hWnd, 0);
+			}
+			hdc = BeginPaint(hWnd, &paint);
+			BitBlt(hdc, 0, 0, width, height, double_dc, 0, 0, SRCCOPY);
+			EndPaint(hWnd, &paint);
 			// TODO
 			break;
 		}
 		case WM_CLOSE:
 		{
-			UINT answer = MessageBox(hWnd, _T("Deseja sair?."), _T("Olá!"), MB_YESNO | MB_TASKMODAL | MB_ICONEXCLAMATION);
+			UINT answer = MessageBox(hWnd, _T("Do you wish to exit?"), _T("Exiting application!"), MB_YESNO | MB_TASKMODAL | MB_ICONEXCLAMATION);
 			if (answer == IDYES) {
 				PostQuitMessage(0);
 			}
@@ -1293,15 +1331,26 @@ LRESULT CALLBACK handle_window_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 	return 0;
 }
 
+void update_double_dc(HDC double_dc, HWND hWnd, int xPos, int yPos, int max_width, int max_height) {
+	SelectObject(double_dc, GetStockObject(DKGRAY_BRUSH));
+	PatBlt(double_dc, 0, 0, max_width, max_height, PATCOPY);
+	SelectObject(double_dc, GetStockObject(WHITE_BRUSH));
+	PatBlt(double_dc, 100, 100, MAP_SLICE, MAP_SLICE, PATCOPY);
+	TCHAR buffer[50] = { 0 };
+	_sntprintf_s(buffer, 50, 50, _T("X: %d, Y: %d"), xPos, yPos);
+	TextOut(double_dc, 10, 10, buffer, _tcsclen(buffer));
+	InvalidateRect(hWnd, NULL, TRUE);
+}
+
 BOOL CALLBACK DlgAddAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) {
 	TCHAR dlgName[MAX_NAME] = { 0 };
-	TCHAR dlgX[4] = { 0 };
-	TCHAR dlgY[4] = { 0 };
-	static Config* cfg;
+	TCHAR dlgX[5] = { 0 };
+	TCHAR dlgY[5] = { 0 };
+	static Config *cfg;
 	switch (msg) {
 		case WM_INITDIALOG:
 		{
-			cfg = (Config*)lParam;
+			cfg = (Config *) lParam;
 			return TRUE;
 		}
 		case WM_COMMAND:
@@ -1310,18 +1359,32 @@ BOOL CALLBACK DlgAddAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) {
 				case IDC_BUTTON1:
 				{
 					//add airport with all parameters
-					GetDlgItemText(dlg, IDC_EDIT1, dlgName, 50);
-					GetDlgItemText(dlg, IDC_EDIT2, dlgX, 4);
-					GetDlgItemText(dlg, IDC_EDIT3, dlgY, 4);
+					GetDlgItemText(dlg, IDC_EDIT1, dlgName, MAX_NAME);
+					GetDlgItemText(dlg, IDC_EDIT2, dlgX, 5);
+					GetDlgItemText(dlg, IDC_EDIT3, dlgY, 5);
 					if (dlgName[0] == '\0' || dlgX[0] == '\0' || dlgY[0] == '\0') {
-
-						//MessageBox(dlg, _T("ERRO"), _T("ERRO"), MB_YESNO);
+						MessageBox(dlg, _T("One of the parameters is empty!"), _T("Error!"), MB_OK | MB_TASKMODAL | MB_ICONERROR);
 						EndDialog(dlg, IDC_BUTTON1);
 						return TRUE;
 					}
+					Airport airport;
+					_cpy(airport.name, dlgName, MAX_NAME);
+					airport.coordinates.x = _tstoi(dlgX);
+					airport.coordinates.y = _tstoi(dlgY);
+
+					EnterCriticalSection(&cfg->cs_airport);
+					BOOL added = add_airport(cfg, &airport);
+					LeaveCriticalSection(&cfg->cs_airport);
+					if (added) {
+						MessageBox(dlg, _T("Airport added with success."), _T("Adding airport."), MB_OK | MB_TASKMODAL | MB_ICONINFORMATION);
+					} else {
+						MessageBox(dlg, _T("Airport not added!"), _T("Error!"), MB_OK | MB_TASKMODAL | MB_ICONERROR);
+					}
+					EndDialog(dlg, IDC_BUTTON1);
 					return TRUE;
 				}
-				case IDC_BUTTON2: {
+				case IDC_BUTTON2:
+				{
 					EndDialog(dlg, IDC_BUTTON1);
 					return TRUE;
 				}
@@ -1339,11 +1402,11 @@ BOOL CALLBACK DlgAddAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) {
 }
 
 BOOL CALLBACK DlgRemoveAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) {
-	static Config* cfg;
+	static Config *cfg;
 	switch (msg) {
 		case WM_INITDIALOG:
 		{
-			cfg = (Config*)lParam;
+			cfg = (Config *) lParam;
 			return TRUE;
 		}
 		case WM_COMMAND:
@@ -1368,14 +1431,14 @@ BOOL CALLBACK DlgRemoveAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam)
 }
 
 BOOL CALLBACK DlgListAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) {
-	TCHAR dlgStr[1000] = {0};
-	static Config* cfg;
+	TCHAR dlgStr[1000] = { 0 };
+	static Config *cfg;
 	switch (msg) {
 		case WM_INITDIALOG:
 		{
-			cfg = (Config*)lParam;
+			cfg = (Config *) lParam;
 			for (unsigned int i = 1; i <= cfg->max_airport; i++) {
-				Airport* airport = get_airport_by_id(cfg, i);
+				Airport *airport = get_airport_by_id(cfg, i);
 				if (airport != NULL && airport->active) {
 					format(dlgStr, 1000, "Name: '%s' (ID: %u)\nCoordinates: (x: %u, y: %u)\n\n", airport->name, airport->id, airport->coordinates.x, airport->coordinates.y);
 				}
@@ -1404,119 +1467,113 @@ BOOL CALLBACK DlgListAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) {
 
 BOOL CALLBACK DlgListAirplane(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) {
 	TCHAR dlgStr[1000] = { 0 };
-	Config* cfg = (Config*)GetWindowLongPtr(dlg, 0);
-	static Config* cfg;
+	static Config *cfg;
 	switch (msg) {
-	case WM_INITDIALOG:
-	{
-		cfg = (Config*)lParam;
-		for (unsigned int i = (cfg->max_airport + 1); i <= (cfg->max_airport + cfg->max_airplane); i++) {
-			Airplane* airplane = get_airplane_by_id(cfg, i);
-			if (airplane != NULL && airplane->active) {
-				Airport departure = airplane->airport_start;
-				Airport destination = airplane->airport_end;
-				cout("Name: '%s' (ID: %u, PID: %u)\nVelocity: %d\nCapacity: %d\nMax. Capacity: %d\nCoordinates: (x: %u, y: %u)\nDeparture: '%s' (ID: %u)\nDestination: '%s' (ID: %u)\n\n",
-					airplane->name, airplane->id, airplane->pid, airplane->velocity, airplane->capacity, airplane->max_capacity, airplane->coordinates.x, airplane->coordinates.y,
-					departure.name, departure.id, destination.name, destination.id);
+		case WM_INITDIALOG:
+		{
+			cfg = (Config *) lParam;
+			for (unsigned int i = (cfg->max_airport + 1); i <= (cfg->max_airport + cfg->max_airplane); i++) {
+				Airplane *airplane = get_airplane_by_id(cfg, i);
+				if (airplane != NULL && airplane->active) {
+					Airport departure = airplane->airport_start;
+					Airport destination = airplane->airport_end;
+					cout("Name: '%s' (ID: %u, PID: %u)\nVelocity: %d\nCapacity: %d\nMax. Capacity: %d\nCoordinates: (x: %u, y: %u)\nDeparture: '%s' (ID: %u)\nDestination: '%s' (ID: %u)\n\n",
+						airplane->name, airplane->id, airplane->pid, airplane->velocity, airplane->capacity, airplane->max_capacity, airplane->coordinates.x, airplane->coordinates.y,
+						departure.name, departure.id, destination.name, destination.id);
+				}
+			}
+			SetDlgItemText(dlg, MAKEINTRESOURCE(IDC_TEXT_TEST), dlgStr);
+			return TRUE;
+		}
+		case WM_COMMAND:
+		{
+			switch (LOWORD(wParam)) {
+				case IDC_BUTTON1:
+				{
+					EndDialog(dlg, IDC_BUTTON1);
+					return TRUE;
+				}
 			}
 		}
-		SetDlgItemText(dlg, MAKEINTRESOURCE(IDC_TEXT_TEST), dlgStr);
-		return TRUE;
-	}
-	case WM_COMMAND:
-	{
-		switch (LOWORD(wParam)) {
-		case IDC_BUTTON1:
+		case WM_CLOSE:
 		{
 			EndDialog(dlg, IDC_BUTTON1);
 			return TRUE;
 		}
-		}
-	}
-	case WM_CLOSE:
-	{
-		EndDialog(dlg, IDC_BUTTON1);
-		return TRUE;
-	}
 	}
 	return FALSE;
 }
 
-BOOL CALLBACK DlgListPassenger(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam)
-{
+BOOL CALLBACK DlgListPassenger(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) {
 	TCHAR dlgStr[1000] = { 0 };
-	Config* cfg = (Config*)GetWindowLongPtr(dlg, 0);
-	static Config* cfg;
+	static Config *cfg;
 	switch (msg) {
-	case WM_INITDIALOG:
-	{
-		cfg = (Config*)lParam;
-		for (unsigned int i = (cfg->max_airport + cfg->max_airplane + 1); i <= (cfg->max_airport + cfg->max_airplane + cfg->max_passenger); i++) {
-			Passenger* passenger = get_passenger_by_id(cfg, i);
-			if (passenger != NULL && passenger->active) {
-				Airport destination = passenger->airport_end;
-				cout("Name: '%s' (ID: %u)\nDestination: '%s' (ID: %u)\n", passenger->name, passenger->id, destination.name, destination.id);
-				if (passenger->airplane.pid) {
-					Airplane airplane = passenger->airplane;
-					cout("Flying on: '%s' (ID: %u, PID: %u)\nCoordinates: (x: %u, y: %u)\n", airplane.name, airplane.id, airplane.pid, airplane.coordinates.x, airplane.coordinates.y);
+		case WM_INITDIALOG:
+		{
+			cfg = (Config *) lParam;
+			for (unsigned int i = (cfg->max_airport + cfg->max_airplane + 1); i <= (cfg->max_airport + cfg->max_airplane + cfg->max_passenger); i++) {
+				Passenger *passenger = get_passenger_by_id(cfg, i);
+				if (passenger != NULL && passenger->active) {
+					Airport destination = passenger->airport_end;
+					cout("Name: '%s' (ID: %u)\nDestination: '%s' (ID: %u)\n", passenger->name, passenger->id, destination.name, destination.id);
+					if (passenger->airplane.pid) {
+						Airplane airplane = passenger->airplane;
+						cout("Flying on: '%s' (ID: %u, PID: %u)\nCoordinates: (x: %u, y: %u)\n", airplane.name, airplane.id, airplane.pid, airplane.coordinates.x, airplane.coordinates.y);
+					} else {
+						Airport current_airport = passenger->airport;
+						cout("Waiting for airplane at: '%s' (ID: %u)\nCoordinates: (x: %u, y: %u)\nWaiting time left: %u\n", current_airport.name, current_airport.id,
+							current_airport.coordinates.x, current_airport.coordinates.y, passenger->wait_time);
+					}
+					cout("\n");
 				}
-				else {
-					Airport current_airport = passenger->airport;
-					cout("Waiting for airplane at: '%s' (ID: %u)\nCoordinates: (x: %u, y: %u)\nWaiting time left: %u\n", current_airport.name, current_airport.id,
-						current_airport.coordinates.x, current_airport.coordinates.y, passenger->wait_time);
+			}
+			SetDlgItemText(dlg, MAKEINTRESOURCE(IDC_TEXT_TEST), dlgStr);
+			return TRUE;
+		}
+		case WM_COMMAND:
+		{
+			switch (LOWORD(wParam)) {
+				case IDC_BUTTON1:
+				{
+					EndDialog(dlg, IDC_BUTTON1);
+					return TRUE;
 				}
-				cout("\n");
 			}
 		}
-		SetDlgItemText(dlg, MAKEINTRESOURCE(IDC_TEXT_TEST), dlgStr);
-		return TRUE;
-	}
-	case WM_COMMAND:
-	{
-		switch (LOWORD(wParam)) {
-		case IDC_BUTTON1:
+		case WM_CLOSE:
 		{
 			EndDialog(dlg, IDC_BUTTON1);
 			return TRUE;
 		}
-		}
-	}
-	case WM_CLOSE:
-	{
-		EndDialog(dlg, IDC_BUTTON1);
-		return TRUE;
-	}
 	}
 	return FALSE;
 }
 
-BOOL CALLBACK DlgListAll(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam)
-{
-	static Config* cfg;
+BOOL CALLBACK DlgListAll(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) {
+	static Config *cfg;
 	TCHAR dlgStr[1000] = { 0 };
-	Config* cfg = (Config*)GetWindowLongPtr(dlg, 0);
 	switch (msg) {
-	case WM_INITDIALOG:
-	{
-		cfg = (Config*)lParam;
-		SetDlgItemText(dlg, MAKEINTRESOURCE(IDC_TEXT_TEST), dlgStr);
-		return TRUE;
-	}
-	case WM_COMMAND:
-	{
-		switch (LOWORD(wParam)) {
-		case IDC_BUTTON1:
+		case WM_INITDIALOG:
+		{
+			cfg = (Config *) lParam;
+			SetDlgItemText(dlg, MAKEINTRESOURCE(IDC_TEXT_TEST), dlgStr);
+			return TRUE;
+		}
+		case WM_COMMAND:
+		{
+			switch (LOWORD(wParam)) {
+				case IDC_BUTTON1:
+				{
+					EndDialog(dlg, IDC_BUTTON1);
+					return TRUE;
+				}
+			}
+		}
+		case WM_CLOSE:
 		{
 			EndDialog(dlg, IDC_BUTTON1);
 			return TRUE;
 		}
-		}
-	}
-	case WM_CLOSE:
-	{
-		EndDialog(dlg, IDC_BUTTON1);
-		return TRUE;
-	}
 	}
 	return FALSE;
 }
