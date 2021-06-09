@@ -200,15 +200,15 @@ void init_control(Config *cfg) {
 	if (thread[2] == NULL)
 		return;
 
-	//WaitForMultipleObjects(3, thread, TRUE, INFINITE);
+	// init window (Win32)
+	init_windows(cfg);
+
+	WaitForMultipleObjects(3, thread, TRUE, INFINITE);
 
 	//CloseHandle(threadCmd);
 	CloseHandle(thread[0]);
 	CloseHandle(thread[1]);
 	CloseHandle(thread[2]);
-
-	// init window (Win32)
-	init_windows(cfg);
 }
 
 void init_windows(Config *cfg) {
@@ -216,6 +216,9 @@ void init_windows(Config *cfg) {
 		TranslateMessage(&cfg->lpMsg);
 		DispatchMessage(&cfg->lpMsg);
 	}
+
+	cfg->die = TRUE;
+	SetEvent(cfg->stop_event);
 }
 
 DWORD WINAPI read_command(void *param) {
@@ -1235,6 +1238,10 @@ LRESULT CALLBACK handle_window_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 					break;
 				}
 				case ID_TOGGLE: {
+					WaitForSingleObject(cfg->mtx_memory, INFINITE);
+					cfg->memory->accepting_planes = !cfg->memory->accepting_planes;
+					ReleaseMutex(cfg->mtx_memory);
+					UINT result = MessageBox(hWnd, (cfg->memory->accepting_planes ? _T("Accepting airplanes.") : _T("Not accepting airplanes.")), _T("Toggle"), MB_OK | MB_TASKMODAL | MB_ICONEXCLAMATION);
 					break;
 				}
 				case ID_VIEWCONFIG: {
@@ -1247,7 +1254,10 @@ LRESULT CALLBACK handle_window_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 					break;
 				}
 				case ID_EXIT: {
-					PostQuitMessage(0);
+					UINT answer = MessageBox(hWnd, _T("Aplicação toda XPTO.\nFeita por:\n ShadøwXPA.\nDeseja sair?."), _T("Olá!"), MB_YESNO | MB_TASKMODAL | MB_ICONEXCLAMATION);
+					if (answer == IDYES) {
+						PostQuitMessage(0);
+					}
 					break;
 				}
 			}
@@ -1260,8 +1270,11 @@ LRESULT CALLBACK handle_window_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 		}
 		case WM_CLOSE:
 		{
+			UINT answer = MessageBox(hWnd, _T("Aplicação toda XPTO.\nFeita por:\n ShadøwXPA.\nDeseja sair?."), _T("Olá!"), MB_YESNO | MB_TASKMODAL | MB_ICONEXCLAMATION);
+			if (answer == IDYES) {
+				PostQuitMessage(0);
+			}
 			// TODO
-			PostQuitMessage(0);
 			break;
 		}
 		default:
