@@ -37,6 +37,7 @@ extern "C" {
 #define _cpy(dest, src, size) _tcscpy_s(dest, size, src)
 #define cpy(dest, src, size) _cpy(dest, _T(src), size)
 #define itos(num, buffer, buffer_size) _itot_s(num, buffer, buffer_size, 10)
+#define format(buffer, size, x, ...) _sntprintf_s(buffer, size, size, _T(x), __VA_ARGS__)
 
 #define MAX_MAP 1000
 #define MAX_NAME 50
