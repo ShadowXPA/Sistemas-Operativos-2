@@ -1248,7 +1248,7 @@ LRESULT CALLBACK handle_window_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 					WaitForSingleObject(cfg->mtx_memory, INFINITE);
 					cfg->memory->accepting_planes = !cfg->memory->accepting_planes;
 					ReleaseMutex(cfg->mtx_memory);
-					UINT result = MessageBox(hWnd, (cfg->memory->accepting_planes ? _T("Accepting airplanes.") : _T("Not accepting airplanes.")), _T("Toggle"), MB_OK | MB_TASKMODAL | MB_ICONEXCLAMATION);
+					MessageBox(hWnd, (cfg->memory->accepting_planes ? _T("Accepting airplanes.") : _T("Not accepting airplanes.")), _T("Toggle"), MB_OK | MB_TASKMODAL | MB_ICONEXCLAMATION);
 					break;
 				}
 				case ID_VIEWCONFIG:
