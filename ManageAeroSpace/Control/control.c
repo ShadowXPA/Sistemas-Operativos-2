@@ -1241,7 +1241,7 @@ LRESULT CALLBACK handle_window_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 					WaitForSingleObject(cfg->mtx_memory, INFINITE);
 					cfg->memory->accepting_planes = !cfg->memory->accepting_planes;
 					ReleaseMutex(cfg->mtx_memory);
-					MessageBox(hWnd, (cfg->memory->accepting_planes ? _T("Accepting airplanes.") : _T("Not accepting airplanes.")), _T("Toggle"), MB_YESNO | MB_TASKMODAL | MB_ICONEXCLAMATION);
+					UINT result = MessageBox(hWnd, (cfg->memory->accepting_planes ? _T("Accepting airplanes.") : _T("Not accepting airplanes.")), _T("Toggle"), MB_OK | MB_TASKMODAL | MB_ICONEXCLAMATION);
 					break;
 				}
 				case ID_VIEWCONFIG: {
@@ -1254,7 +1254,10 @@ LRESULT CALLBACK handle_window_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 					break;
 				}
 				case ID_EXIT: {
-					PostQuitMessage(0);
+					UINT answer = MessageBox(hWnd, _T("Aplicação toda XPTO.\nFeita por:\n ShadøwXPA.\nDeseja sair?."), _T("Olá!"), MB_YESNO | MB_TASKMODAL | MB_ICONEXCLAMATION);
+					if (answer == IDYES) {
+						PostQuitMessage(0);
+					}
 					break;
 				}
 			}
@@ -1267,8 +1270,11 @@ LRESULT CALLBACK handle_window_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 		}
 		case WM_CLOSE:
 		{
+			UINT answer = MessageBox(hWnd, _T("Aplicação toda XPTO.\nFeita por:\n ShadøwXPA.\nDeseja sair?."), _T("Olá!"), MB_YESNO | MB_TASKMODAL | MB_ICONEXCLAMATION);
+			if (answer == IDYES) {
+				PostQuitMessage(0);
+			}
 			// TODO
-			PostQuitMessage(0);
 			break;
 		}
 		default:
