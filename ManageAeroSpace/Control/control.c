@@ -1272,11 +1272,48 @@ LRESULT CALLBACK handle_window_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 }
 
 BOOL CALLBACK DlgAddAirpot(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) {
-	return TRUE;
+	switch (msg) {
+		case WM_INITDIALOG: {
+			return TRUE;
+		}
+		case WM_COMMAND: {
+			switch (LOWORD(wParam)) {
+				case IDC_BUTTON1: {
+					EndDialog(dlg, IDC_BUTTON1);
+					return TRUE;
+				}
+				default:
+					return TRUE;
+				}
+		}
+		case WM_CLOSE: {
+			EndDialog(dlg, IDC_BUTTON1);
+			return TRUE;
+		}
+	}
 }
 
 BOOL CALLBACK DlgRemoveAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) {
-	return TRUE;
+	switch (msg) {
+		case WM_INITDIALOG: {
+			//SetDlgItemText(dlg, MAKEINTRESOURCE(IDC_STATIC), _T("\tola!\nMundo"));
+			return TRUE;
+		}
+		case WM_COMMAND: {
+			switch (LOWORD(wParam)) {
+				case IDC_BUTTON1: {
+					EndDialog(dlg, IDC_BUTTON1);
+					return TRUE;
+				}
+				default:
+					return TRUE;
+				}
+		}
+		case WM_CLOSE: {
+			EndDialog(dlg, IDC_BUTTON1);
+			return TRUE;
+		}
+	}
 }
 
 BOOL CALLBACK DlgAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) {
