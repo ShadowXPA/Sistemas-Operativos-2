@@ -1205,9 +1205,17 @@ LRESULT CALLBACK handle_window_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 		case WM_COMMAND: {
 			switch (LOWORD(wParam)) {
 				case ID_AIRPORT_ADDAIRPORT: {
+					if (DialogBox(cfg->hInst, MAKEINTRESOURCE(IDD_FORMVIEW), hWnd, DlgAddAirpot) == -1) {
+						// se retornar -1 houve um erro
+
+					}
 					break;
 				}
 				case ID_AIRPORT_REMOVEAIRPORT: {
+					if (DialogBox(cfg->hInst, MAKEINTRESOURCE(IDD_FORMVIEW), hWnd, DlgRemoveAirport) == -1) {
+						// se retornar -1 houve um erro
+
+					}
 					break;
 				}
 				case ID_LIST_AIRPORT: {
@@ -1263,19 +1271,27 @@ LRESULT CALLBACK handle_window_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 	return 0;
 }
 
+BOOL CALLBACK DlgAddAirpot(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) {
+	return TRUE;
+}
+
+BOOL CALLBACK DlgRemoveAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) {
+	return TRUE;
+}
+
 BOOL CALLBACK DlgAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) {
 	char dlgStr[20];
 	switch (msg) {
 		case WM_INITDIALOG: {
-			SetDlgItemText(dlg, MAKEINTRESOURCE(IDC_STATIC), _T("\tola!\nMundo"));
-			
+			//SetDlgItemText(dlg, MAKEINTRESOURCE(IDC_STATIC), _T("\tola!\nMundo"));
 			return TRUE;
 		}
 		case WM_COMMAND: {
 			switch (LOWORD(wParam)) {
-			case IDC_BUTTON1:
+			case IDC_BUTTON1: {
 				EndDialog(dlg, IDC_BUTTON1);
 				return TRUE;
+			}
 			default:
 				return TRUE;
 			}
