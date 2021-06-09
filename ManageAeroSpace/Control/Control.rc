@@ -87,17 +87,17 @@ BEGIN
     IDD_DIALOGBAR, DIALOG
     BEGIN
         LEFTMARGIN, 6
-        RIGHTMARGIN, 323
+        RIGHTMARGIN, 324
         TOPMARGIN, 7
         BOTTOMMARGIN, 43
     END
 
-    IDD_ADD_AIRPORT, DIALOG
+    IDD_FORMVIEW, DIALOG
     BEGIN
         LEFTMARGIN, 7
-        RIGHTMARGIN, 178
+        RIGHTMARGIN, 179
         TOPMARGIN, 7
-        BOTTOMMARGIN, 86
+        BOTTOMMARGIN, 87
     END
 END
 #endif    // APSTUDIO_INVOKED
@@ -109,11 +109,12 @@ END
 //
 
 IDD_DIALOGBAR DIALOGEX 0, 0, 330, 50
-STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+STYLE DS_SYSMODAL | DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | DS_CENTER | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+CAPTION "List"
 FONT 8, "MS Shell Dlg", 400, 0, 0x0
 BEGIN
-    PUSHBUTTON      "Ok",IDC_BUTTON1,273,29,50,14
-    LTEXT           "",IDC_TEXT_TEST,6,7,317,17
+PUSHBUTTON      "Ok", IDC_BUTTON1, 273, 29, 50, 14
+LTEXT           "", IDC_TEXT_TEST, 6, 7, 317, 17
 END
 
 IDD_ADD_AIRPORT DIALOGEX 0, 0, 185, 93
@@ -122,11 +123,11 @@ EXSTYLE WS_EX_TOPMOST | WS_EX_APPWINDOW
 CAPTION "Add airport"
 FONT 8, "MS Shell Dlg", 400, 0, 0x0
 BEGIN
-    PUSHBUTTON      "Confirmar",IDC_BUTTON1,128,72,50,14
-    PUSHBUTTON      "Cancelar",IDC_BUTTON2,65,72,50,14
-    EDITTEXT        IDC_EDIT1,21,23,138,14,ES_AUTOHSCROLL
-    CTEXT           "Enter the name of the airport:",IDC_STATIC,21,14,98,8
-    LTEXT           "Enter the coordinates",IDC_STATIC,21,38,70,8
+PUSHBUTTON      "Confirmar", IDC_BUTTON1, 128, 72, 50, 14
+PUSHBUTTON      "Cancelar", IDC_BUTTON2, 65, 72, 50, 14
+EDITTEXT        IDC_EDIT1, 21, 23, 138, 14, ES_AUTOHSCROLL
+CTEXT           "Enter the name of the airport:", IDC_STATIC, 21, 14, 98, 8
+LTEXT           "Enter the coordinates", IDC_STATIC, 21, 38, 70, 8
 END
 
 
@@ -140,7 +141,7 @@ BEGIN
     0
 END
 
-IDD_ADD_AIRPORT AFX_DIALOG_LAYOUT
+IDD_FORMVIEW AFX_DIALOG_LAYOUT
 BEGIN
     0,
     0, 0, 0, 0,
@@ -165,7 +166,7 @@ LANGUAGE LANG_PORTUGUESE, SUBLANG_PORTUGUESE
 // PNG
 //
 
-IDB_PNG1                PNG                     "..\\..\\Icon.png"
+IDB_PNG1                PNG                     "C:\\Users\\lfida\\Desktop\\ISEC 2020-2021\\SO2\\TP\\Icon.png"
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -175,7 +176,7 @@ IDB_PNG1                PNG                     "..\\..\\Icon.png"
 
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
-IDI_ICON1               ICON                    "..\\..\\Icon.ico"
+IDI_ICON1               ICON                    "C:\\Users\\lfida\\Desktop\\ISEC 2020-2021\\SO2\\TP\\Icon.ico"
 
 #endif    // Portuguese (Portugal) resources
 /////////////////////////////////////////////////////////////////////////////

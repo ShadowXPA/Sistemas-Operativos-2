@@ -1210,25 +1210,17 @@ LRESULT CALLBACK handle_window_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 			switch (LOWORD(wParam)) {
 				case ID_AIRPORT_ADDAIRPORT:
 				{
-					//INT_PTR res = DialogBox(NULL, MAKEINTRESOURCE(IDD_FORMVIEW), hWnd, DlgAddAirport);
-					HWND dlg = CreateDialog(cfg->hInst, MAKEINTRESOURCE(IDD_FORMVIEW), hWnd, DlgAddAirport);
-					ShowWindow(dlg, SW_SHOW);
+					DialogBox(cfg->hInst, MAKEINTRESOURCE(IDD_FORMVIEW), hWnd, DlgAddAirport);
 					break;
 				}
 				case ID_AIRPORT_REMOVEAIRPORT:
 				{
-					if (DialogBox(NULL, MAKEINTRESOURCE(IDD_FORMVIEW), hWnd, DlgRemoveAirport) == -1) {
-						// se retornar -1 houve um erro
-
-					}
+					DialogBox(cfg->hInst, MAKEINTRESOURCE(IDD_FORMVIEW), hWnd, DlgRemoveAirport);
 					break;
 				}
 				case ID_LIST_AIRPORT:
 				{
-					if (DialogBox(NULL, MAKEINTRESOURCE(IDD_DIALOGBAR), hWnd, DlgAirport) == -1) {
-						// se retornar -1 houve um erro
-
-					}
+					DialogBox(cfg->hInst, MAKEINTRESOURCE(IDD_DIALOGBAR), hWnd, DlgAirport);
 					break;
 				}
 				case ID_LIST_AIRPLANE:
@@ -1299,6 +1291,7 @@ BOOL CALLBACK DlgAddAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) {
 	switch (msg) {
 		case WM_INITDIALOG:
 		{
+
 			return TRUE;
 		}
 		case WM_COMMAND:
@@ -1306,6 +1299,10 @@ BOOL CALLBACK DlgAddAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) {
 			switch (LOWORD(wParam)) {
 				case IDC_BUTTON1:
 				{
+					EndDialog(dlg, IDC_BUTTON1);
+					return TRUE;
+				}
+				case IDC_BUTTON2: {
 					EndDialog(dlg, IDC_BUTTON1);
 					return TRUE;
 				}
@@ -1351,14 +1348,17 @@ BOOL CALLBACK DlgRemoveAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam)
 
 BOOL CALLBACK DlgAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) {
 	char dlgStr[20];
+	Config* cfg = (Config*)GetWindowLongPtr(dlg, 0);
 	switch (msg) {
 		case WM_INITDIALOG:
 		{
-			if (GetWindowLong(dlg, GWL_STYLE) != WS_VISIBLE) {
-				EndDialog(dlg, IDC_BUTTON1);
-				return TRUE;
+			for (unsigned int i = 1; i <= cfg->max_airport; i++) {
+				Airport* airport = get_airport_by_id(cfg, i);
+				if (airport != NULL && airport->active) {
+					cout("Name: '%s' (ID: %u)\nCoordinates: (x: %u, y: %u)\n\n", airport->name, airport->id, airport->coordinates.x, airport->coordinates.y);
+				}
 			}
-			SetDlgItemText(dlg, MAKEINTRESOURCE(IDC_TEXT_TEST), _T("\tola!\nMundo"));
+			SetDlgItemText(dlg, MAKEINTRESOURCE(IDC_TEXT_TEST), );
 			return TRUE;
 		}
 		case WM_COMMAND:
