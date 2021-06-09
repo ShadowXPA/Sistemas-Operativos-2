@@ -124,7 +124,9 @@ FONT 8, "MS Shell Dlg", 400, 0, 0x0
 BEGIN
     PUSHBUTTON      "Confirmar",IDC_BUTTON1,128,72,50,14
     PUSHBUTTON      "Cancelar",IDC_BUTTON2,65,72,50,14
-    EDITTEXT        IDC_EDIT1,23,24,138,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT1,21,23,138,14,ES_AUTOHSCROLL
+    CTEXT           "Enter the name of the airport:",IDC_STATIC,21,14,98,8
+    LTEXT           "Enter the coordinates",IDC_STATIC,21,38,70,8
 END
 
 
@@ -140,7 +142,12 @@ END
 
 IDD_ADD_AIRPORT AFX_DIALOG_LAYOUT
 BEGIN
-    0
+    0,
+    0, 0, 0, 0,
+    0, 0, 0, 0,
+    0, 0, 0, 0,
+    100, 0, 0, 0,
+    0, 0, 0, 0
 END
 
 #endif    // English (United States) resources
