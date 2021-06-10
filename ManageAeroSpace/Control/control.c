@@ -7,7 +7,8 @@ BOOL init_config(Config *cfg) {
 	cfg->mtx_instance = CreateMutex(NULL, TRUE, MTX_CTR);
 	DWORD already_exists = GetLastError();
 	if (already_exists == ERROR_ALREADY_EXISTS) {
-		cout("Application already running\n");
+		MessageBox(NULL, _T("Application already running!"), _T("Error"), MB_OK | MB_APPLMODAL | MB_ICONERROR);
+		//cout("Application already running\n");
 		return FALSE;
 	}
 
@@ -138,7 +139,7 @@ BOOL init_config2(Config *cfg, HINSTANCE hInst, int nCmdShow) {
 		return FALSE;
 	}
 
-	cfg->hWnd = CreateWindow(cfg->program_name, CONTROL_NAME, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, (HWND) HWND_DESKTOP, (HMENU) NULL, (HINSTANCE) cfg->hInst, 0);
+	cfg->hWnd = CreateWindow(cfg->program_name, CONTROL_NAME, WS_SYSMENU | WS_CAPTION, CW_USEDEFAULT, CW_USEDEFAULT, WINDOW_LOG_START_X + WINDOW_LOG_SIZE_X + 50, WINDOW_BTN3_START_Y + 150, (HWND) HWND_DESKTOP, (HMENU) NULL, (HINSTANCE) cfg->hInst, 0);
 
 	SetWindowLongPtr(cfg->hWnd, 0, (LONG_PTR) cfg);
 
@@ -1189,7 +1190,7 @@ void print_passenger(Config *cfg) {
 	}
 }
 
-int find_square(int x, int y) {
+int find_slice(int x, int y) {
 	if (x < 0 || x > MAX_MAP || y < 0 || y > MAX_MAP)
 		return -1;
 
@@ -1225,8 +1226,20 @@ LRESULT CALLBACK handle_window_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 			SelectObject(double_dc, GetStockObject(DKGRAY_BRUSH));
 			PatBlt(double_dc, 0, 0, max_width, max_height, PATCOPY);
 			SelectObject(double_dc, GetStockObject(WHITE_BRUSH));
-			PatBlt(double_dc, 100, 100, 500, 500, PATCOPY);
+			PatBlt(double_dc, WINDOW_MAP_START_X, WINDOW_MAP_START_Y, MAP_SLICE, MAP_SLICE, PATCOPY);
+			PatBlt(double_dc, WINDOW_LOG_START_X, WINDOW_LOG_START_Y, WINDOW_LOG_SIZE_X, WINDOW_LOG_SIZE_Y, PATCOPY);
+			PatBlt(double_dc, WINDOW_BTN1_START_X, WINDOW_BTN1_START_Y, WINDOW_BTN_SIZE_X, WINDOW_BTN_SIZE_Y, PATCOPY);
+			PatBlt(double_dc, WINDOW_BTN2_START_X, WINDOW_BTN2_START_Y, WINDOW_BTN_SIZE_Y, WINDOW_BTN_SIZE_X, PATCOPY);
+			PatBlt(double_dc, WINDOW_BTN3_START_X, WINDOW_BTN3_START_Y, WINDOW_BTN_SIZE_X, WINDOW_BTN_SIZE_Y, PATCOPY);
+			PatBlt(double_dc, WINDOW_BTN4_START_X, WINDOW_BTN4_START_Y, WINDOW_BTN_SIZE_Y, WINDOW_BTN_SIZE_X, PATCOPY);
 			ReleaseDC(hWnd, hdc);
+			break;
+		}
+		case WM_SIZE:
+		{
+			GetWindowRect(hWnd, &rect);
+			height = rect.bottom - rect.top;
+			width = rect.right - rect.left;
 			break;
 		}
 		case WM_COMMAND:
@@ -1293,11 +1306,18 @@ LRESULT CALLBACK handle_window_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 			}
 			break;
 		}
+		case WM_LBUTTONDOWN:
+		{
+			cfg->current_mouse_click_pos.x = GET_X_LPARAM(lParam);
+			cfg->current_mouse_click_pos.y = GET_Y_LPARAM(lParam);
+			update_double_dc(cfg);
+			break;
+		}
 		case WM_MOUSEMOVE:
 		{
-			xPos = GET_X_LPARAM(lParam);
-			yPos = GET_Y_LPARAM(lParam);
-			update_double_dc(double_dc, hWnd, xPos, yPos, max_width, max_height);
+			cfg->current_mouse_pos.x = GET_X_LPARAM(lParam);
+			cfg->current_mouse_pos.y = GET_Y_LPARAM(lParam);
+			update_double_dc(cfg);
 			break;
 		}
 		case WM_ERASEBKGND:
@@ -1308,6 +1328,9 @@ LRESULT CALLBACK handle_window_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 		{
 			if (cfg == NULL) {
 				cfg = (Config *) GetWindowLongPtr(hWnd, 0);
+				cfg->double_dc = double_dc;
+				cfg->max_window_size.x = max_width;
+				cfg->max_window_size.y = max_height;
 			}
 			hdc = BeginPaint(hWnd, &paint);
 			BitBlt(hdc, 0, 0, width, height, double_dc, 0, 0, SRCCOPY);
@@ -1331,15 +1354,110 @@ LRESULT CALLBACK handle_window_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 	return 0;
 }
 
-void update_double_dc(HDC double_dc, HWND hWnd, int xPos, int yPos, int max_width, int max_height) {
-	SelectObject(double_dc, GetStockObject(DKGRAY_BRUSH));
-	PatBlt(double_dc, 0, 0, max_width, max_height, PATCOPY);
-	SelectObject(double_dc, GetStockObject(WHITE_BRUSH));
-	PatBlt(double_dc, 100, 100, MAP_SLICE, MAP_SLICE, PATCOPY);
-	TCHAR buffer[50] = { 0 };
-	_sntprintf_s(buffer, 50, 50, _T("X: %d, Y: %d"), xPos, yPos);
-	TextOut(double_dc, 10, 10, buffer, _tcsclen(buffer));
-	InvalidateRect(hWnd, NULL, TRUE);
+int click_id(Config *cfg, Point *p) {
+	if (p->x >= WINDOW_BTN1_START_X && p->x <= (WINDOW_BTN1_START_X + WINDOW_BTN_SIZE_X)
+		&& p->y >= WINDOW_BTN1_START_Y && p->y <= (WINDOW_BTN1_START_Y + WINDOW_BTN_SIZE_Y)) {
+		return BTN1_ID;
+	}
+	if (p->x >= WINDOW_BTN2_START_X && p->x <= (WINDOW_BTN2_START_X + WINDOW_BTN_SIZE_Y)
+		&& p->y >= WINDOW_BTN2_START_Y && p->y <= (WINDOW_BTN2_START_Y + WINDOW_BTN_SIZE_X)) {
+		return BTN2_ID;
+	}
+	if (p->x >= WINDOW_BTN3_START_X && p->x <= (WINDOW_BTN3_START_X + WINDOW_BTN_SIZE_X)
+		&& p->y >= WINDOW_BTN3_START_Y && p->y <= (WINDOW_BTN3_START_Y + WINDOW_BTN_SIZE_Y)) {
+		return BTN3_ID;
+	}
+	if (p->x >= WINDOW_BTN4_START_X && p->x <= (WINDOW_BTN4_START_X + WINDOW_BTN_SIZE_Y)
+		&& p->y >= WINDOW_BTN4_START_Y && p->y <= (WINDOW_BTN4_START_Y + WINDOW_BTN_SIZE_X)) {
+		return BTN4_ID;
+	}
+	if (p->x >= WINDOW_MAP_START_X && p->x <= (WINDOW_MAP_START_X + MAP_SLICE)
+		&& p->y >= WINDOW_MAP_START_Y && p->y <= (WINDOW_MAP_START_Y + MAP_SLICE)) {
+		// NORMALIZE CLICK
+		// check if map has anything on that position +/- threshold
+		Point p2 = normalize_click(&cfg->slices[cfg->current_slice], p->x, p->y);
+		Airport *ap = get_airport_by_name_or_radius(cfg, _T(""), p2, CLICK_THRESHOLD);
+		if (ap != NULL && ap->active) {
+			return ap->id;
+		}
+	}
+
+	return -1000;
+}
+
+Point normalize_click(Slice *slice, int x, int y) {
+	Point p = { 0 };
+	if (!(x < WINDOW_MAP_START_X || x > WINDOW_MAP_START_X + MAP_SLICE) && !(y < WINDOW_MAP_START_Y || y > WINDOW_MAP_START_Y + MAP_SLICE)) {
+		p.x = x - WINDOW_MAP_START_X + slice->line.x;
+		p.y = y - WINDOW_MAP_START_Y + slice->line.y;
+	}
+	return p;
+}
+
+void update_double_dc(Config *cfg) {
+	SelectObject(cfg->double_dc, GetStockObject(DKGRAY_BRUSH));
+	PatBlt(cfg->double_dc, 0, 0, cfg->max_window_size.x, cfg->max_window_size.y, PATCOPY);
+	SelectObject(cfg->double_dc, GetStockObject(WHITE_BRUSH));
+	PatBlt(cfg->double_dc, WINDOW_MAP_START_X, WINDOW_MAP_START_Y, MAP_SLICE, MAP_SLICE, PATCOPY);
+	PatBlt(cfg->double_dc, WINDOW_LOG_START_X, WINDOW_LOG_START_Y, WINDOW_LOG_SIZE_X, WINDOW_LOG_SIZE_Y, PATCOPY);
+	PatBlt(cfg->double_dc, WINDOW_BTN1_START_X, WINDOW_BTN1_START_Y, WINDOW_BTN_SIZE_X, WINDOW_BTN_SIZE_Y, PATCOPY);
+	PatBlt(cfg->double_dc, WINDOW_BTN2_START_X, WINDOW_BTN2_START_Y, WINDOW_BTN_SIZE_Y, WINDOW_BTN_SIZE_X, PATCOPY);
+	PatBlt(cfg->double_dc, WINDOW_BTN3_START_X, WINDOW_BTN3_START_Y, WINDOW_BTN_SIZE_X, WINDOW_BTN_SIZE_Y, PATCOPY);
+	PatBlt(cfg->double_dc, WINDOW_BTN4_START_X, WINDOW_BTN4_START_Y, WINDOW_BTN_SIZE_Y, WINDOW_BTN_SIZE_X, PATCOPY);
+	// TODO verify mouse click
+	int id = click_id(cfg, &cfg->current_mouse_click_pos);
+	switch (id) {
+		case BTN1_ID:
+		{
+			// UP
+			if (cfg->current_slice - NUM_SLICE >= 0) {
+				cfg->current_slice -= NUM_SLICE;
+			}
+			break;
+		}
+		case BTN2_ID:
+		{
+			// RIGHT
+			if (cfg->current_slice + 1 < (NUM_SLICE * NUM_SLICE)) {
+				cfg->current_slice++;
+			}
+			break;
+		}
+		case BTN3_ID:
+		{
+			// BOTTOM
+			if (cfg->current_slice + NUM_SLICE < (NUM_SLICE * NUM_SLICE)) {
+				cfg->current_slice += NUM_SLICE;
+			}
+			break;
+		}
+		case BTN4_ID:
+		{
+			// LEFT
+			if (cfg->current_slice - 1 >= 0) {
+				cfg->current_slice--;
+			}
+			break;
+		}
+		default:
+			if (id > 0 && ((unsigned int) id) < cfg->max_airport) {
+				// AIRPORT HAS BEEN CLICKED
+				TCHAR buff[MAX_NAME] = { 0 };
+				Airport *ap = get_airport_by_id(cfg, (unsigned int) id);
+				format(buff, MAX_NAME, "Airport '%s' (ID: %d) clicked!", ap->name, ap->id);
+				MessageBox(cfg->hWnd, buff, _T(""), MB_OK);
+			}
+			break;
+	}
+	// TODO verify mouse hover
+	// TODO update map
+	TCHAR buffer[MAX_NAME] = { 0 };
+	Point p = normalize_click(&cfg->slices[cfg->current_slice], cfg->current_mouse_pos.x, cfg->current_mouse_pos.y);
+	_sntprintf_s(buffer, MAX_NAME, MAX_NAME, _T("Slice ID: %d -> X: %d, Y: %d"), cfg->current_slice, p.x, p.y);
+	TextOut(cfg->double_dc, 10, 10, buffer, _tcsclen(buffer));
+	cfg->current_mouse_click_pos.x = 0;
+	cfg->current_mouse_click_pos.y = 0;
+	InvalidateRect(cfg->hWnd, NULL, TRUE);
 }
 
 BOOL CALLBACK DlgAddAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) {
