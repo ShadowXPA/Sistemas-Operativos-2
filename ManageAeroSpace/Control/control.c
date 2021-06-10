@@ -1258,7 +1258,6 @@ LRESULT CALLBACK handle_window_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 	switch (msg) {
 		case WM_CREATE:
 		{
-			// TODO
 			GetWindowRect(hWnd, &rect);
 			height = rect.bottom - rect.top;
 			width = rect.right - rect.left;
@@ -1885,7 +1884,6 @@ BOOL CALLBACK DlgKickAirplane(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) 
 						removed = _remove_airplane(cfg, airplane);
 					}
 					LeaveCriticalSection(&cfg->cs_airplane);
-					//TODO
 					if (removed) {
 						SharedBuffer sb;
 						sb.cmd_id = CMD_SHUTDOWN;
