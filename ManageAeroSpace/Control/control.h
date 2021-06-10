@@ -20,7 +20,29 @@
 #define MTX_A _T("ControlMutexA")
 
 #define MAP_SLICE 500
-#define NUM_SLICE 2//(MAP_SLICE / MAX_MAP)
+#define NUM_SLICE (MAX_MAP / MAP_SLICE)
+#define WINDOW_MAP_START_X 100
+#define WINDOW_MAP_START_Y 100
+#define WINDOW_LOG_START_X (WINDOW_MAP_START_X + MAP_SLICE + 100)
+#define WINDOW_LOG_START_Y WINDOW_MAP_START_Y
+#define WINDOW_LOG_SIZE_X 250
+#define WINDOW_LOG_SIZE_Y 500
+#define WINDOW_BTN_SIZE_X MAP_SLICE
+#define WINDOW_BTN_SIZE_Y 50
+#define WINDOW_BTN1_START_X WINDOW_MAP_START_X
+#define WINDOW_BTN1_START_Y (WINDOW_MAP_START_Y - WINDOW_BTN_SIZE_Y - 10)
+#define WINDOW_BTN2_START_X (WINDOW_MAP_START_X + MAP_SLICE + 10)
+#define WINDOW_BTN2_START_Y WINDOW_MAP_START_Y
+#define WINDOW_BTN3_START_X WINDOW_MAP_START_X
+#define WINDOW_BTN3_START_Y (WINDOW_MAP_START_Y + MAP_SLICE + 10)
+#define WINDOW_BTN4_START_X (WINDOW_MAP_START_X - WINDOW_BTN_SIZE_Y - 10)
+#define WINDOW_BTN4_START_Y WINDOW_MAP_START_Y
+
+#define CLICK_THRESHOLD 10
+#define BTN1_ID -1
+#define BTN2_ID -2
+#define BTN3_ID -3
+#define BTN4_ID -4
 
 #define CONTROL_NAME _T("Control")
 
@@ -83,7 +105,14 @@ typedef struct cfg {
 	HWND hWnd;
 	MSG lpMsg;
 	WNDCLASSEX wcApp;
+
+	HDC double_dc;
+
 	Slice *slices;
+	int current_slice;
+	Point current_mouse_pos;
+	Point current_mouse_click_pos;
+	Point max_window_size;
 } Config;
 
 typedef struct passengercfg {
@@ -139,7 +168,7 @@ BOOL receive_message_namedpipe(PassengerConfig *, NamedPipeBuffer *);
 BOOL send_message_namedpipe(PassengerConfig *, NamedPipeBuffer *);
 void broadcast_message_namedpipe_in_airplane(Config *, NamedPipeBuffer *, Airplane *);
 
-int find_square(int, int);
+int find_slice(int, int);
 
 LRESULT CALLBACK handle_window_event(HWND, UINT, WPARAM, LPARAM);
 
@@ -151,6 +180,10 @@ BOOL CALLBACK DlgListAirplane(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam);
 BOOL CALLBACK DlgListPassenger(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam);
 BOOL CALLBACK DlgListAll(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam);
 
+void update_double_dc(Config *);
+
+Point normalize_click(Slice *, int, int);
+int click_id(Config *, Point *);
 BOOL CALLBACK DlgKickAirplane(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam);
 
 void update_double_dc(HDC double_dc, HWND hWnd, int xPos, int yPos, int max_width, int max_height);
