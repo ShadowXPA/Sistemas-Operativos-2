@@ -151,6 +151,8 @@ BOOL CALLBACK DlgListAirplane(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam);
 BOOL CALLBACK DlgListPassenger(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam);
 BOOL CALLBACK DlgListAll(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam);
 
+BOOL CALLBACK DlgKickAirplane(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam);
+
 void update_double_dc(HDC double_dc, HWND hWnd, int xPos, int yPos, int max_width, int max_height);
 
 #endif // !CONTROL_H
