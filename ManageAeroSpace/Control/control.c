@@ -1292,6 +1292,7 @@ LRESULT CALLBACK handle_window_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 				}
 				case ID_OTHER_ABOUT:
 				{
+					MessageBox(hWnd, _T("Trabalho realizado por:\nLeandro Fidalgo - 2017017144\nPedro Alves - 2019112789") , _T("About"), MB_OK | MB_TASKMODAL | MB_ICONINFORMATION);
 					break;
 				}
 				case ID_EXIT:
@@ -1663,21 +1664,14 @@ BOOL CALLBACK DlgListPassenger(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam)
 				HWND hwndList = GetDlgItem(dlg, IDC_LIST_ITEMS);
 				if (passenger != NULL && passenger->active) {
 					Airport destination = passenger->airport_end;
-					//cout("Name: '%s' (ID: %u)\nDestination: '%s' (ID: %u)\n", passenger->name, passenger->id, destination.name, destination.id);
-					format(dlgStr, 1000, "Name: '%s' (ID: %u)\nDestination: '%s' (ID: %u)\n", passenger->name, passenger->id, destination.name, destination.id);
-					int pos = (int)SendMessage(hwndList, LB_ADDSTRING, 0, (LPARAM)dlgStr);
-					SendMessage(hwndList, LB_SETITEMDATA, pos, (LPARAM)i);
 					if (passenger->airplane.pid) {
 						Airplane airplane = passenger->airplane;
-						//cout("Flying on: '%s' (ID: %u, PID: %u)\nCoordinates: (x: %u, y: %u)\n", airplane.name, airplane.id, airplane.pid, airplane.coordinates.x, airplane.coordinates.y);
-						format(dlgStr, 1000, "Flying on: '%s' (ID: %u, PID: %u)\nCoordinates: (x: %u, y: %u)\n", airplane.name, airplane.id, airplane.pid, airplane.coordinates.x, airplane.coordinates.y);
+						format(dlgStr, 1000, "Name: '%s' (ID: %u) Destination: '%s' (ID: %u) Flying on: '%s' (ID: %u, PID: %u) Coordinates: (x: %u, y: %u)", passenger->name, passenger->id, destination.name, destination.id, airplane.name, airplane.id, airplane.pid, airplane.coordinates.x, airplane.coordinates.y);
 						int pos = (int)SendMessage(hwndList, LB_ADDSTRING, 0, (LPARAM)dlgStr);
 						SendMessage(hwndList, LB_SETITEMDATA, pos, (LPARAM)i);
 					} else {
 						Airport current_airport = passenger->airport;
-						/*cout("Waiting for airplane at: '%s' (ID: %u)\nCoordinates: (x: %u, y: %u)\nWaiting time left: %u\n", current_airport.name, current_airport.id,
-							current_airport.coordinates.x, current_airport.coordinates.y, passenger->wait_time);*/
-						format(dlgStr, 1000, "Waiting for airplane at: '%s' (ID: %u)\nCoordinates: (x: %u, y: %u)\nWaiting time left: %u\n", current_airport.name, current_airport.id,
+						format(dlgStr, 1000, "Name: '%s' (ID: %u) Destination: '%s' (ID: %u) Waiting for airplane at: '%s' (ID: %u) Coordinates: (x: %u, y: %u) Waiting time left: %u", passenger->name, passenger->id, destination.name, destination.id, current_airport.name, current_airport.id,
 							current_airport.coordinates.x, current_airport.coordinates.y, passenger->wait_time);
 						int pos = (int)SendMessage(hwndList, LB_ADDSTRING, 0, (LPARAM)dlgStr);
 						SendMessage(hwndList, LB_SETITEMDATA, pos, (LPARAM)i);
@@ -1739,11 +1733,12 @@ BOOL CALLBACK DlgKickAirplane(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) 
 					pid = airplane->pid;
 					removed = _remove_airplane(cfg, airplane);
 				}
-				else {
-					MessageBox(dlg, _T("Airplane does not exist!"), _T("Error!"), MB_OK | MB_TASKMODAL | MB_ICONERROR);
-
-				}
 				LeaveCriticalSection(&cfg->cs_airplane);
+				//TODO
+				if (!(airplane != NULL && airplane->active)) {
+					MessageBox(dlg, _T("Airplane does not exist!"), _T("Error!"), MB_OK | MB_TASKMODAL | MB_ICONERROR);
+				}
+				
 				if (removed) {
 					SharedBuffer sb;
 					sb.cmd_id = CMD_SHUTDOWN;
