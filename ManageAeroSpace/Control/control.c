@@ -926,6 +926,21 @@ Airport *get_airport_by_name_or_radius(Config *cfg, const TCHAR *name, const Poi
 	return NULL;
 }
 
+Airplane *get_airplane_by_radius(Config *cfg, const Point coord, const unsigned int radius) {
+	for (unsigned int i = (cfg->max_airport + 1); i <= (cfg->max_airport + cfg->max_airplane); i++) {
+		Airplane *airplane = get_airplane_by_id(cfg, i);
+		Point p;
+		p.x = (unsigned int) abs(airplane->coordinates.x - coord.x);
+		p.y = (unsigned int) abs(airplane->coordinates.y - coord.y);
+		if (airplane != NULL && airplane->active
+			&& ((p.x <= radius) && (p.y <= radius))) {
+			return airplane;
+		}
+	}
+
+	return NULL;
+}
+
 Airplane *get_airplane_by_name(Config *cfg, const TCHAR *name) {
 	for (unsigned int i = (cfg->max_airport + 1); i <= (cfg->max_airport + cfg->max_airplane); i++) {
 		Airplane *airplane = get_airplane_by_id(cfg, i);
@@ -1372,8 +1387,6 @@ int click_id(Config *cfg, Point *p) {
 	}
 	if (p->x >= WINDOW_MAP_START_X && p->x <= (WINDOW_MAP_START_X + MAP_SLICE)
 		&& p->y >= WINDOW_MAP_START_Y && p->y <= (WINDOW_MAP_START_Y + MAP_SLICE)) {
-		// NORMALIZE CLICK
-		// check if map has anything on that position +/- threshold
 		Point p2 = normalize_click(&cfg->slices[cfg->current_slice], p->x, p->y);
 		Airport *ap = get_airport_by_name_or_radius(cfg, _T(""), p2, CLICK_THRESHOLD);
 		if (ap != NULL && ap->active) {
@@ -1381,7 +1394,20 @@ int click_id(Config *cfg, Point *p) {
 		}
 	}
 
-	return -1000;
+	return IGNORE_ID;
+}
+
+int hover_id(Config *cfg, Point *p) {
+	if (p->x >= WINDOW_MAP_START_X && p->x <= (WINDOW_MAP_START_X + MAP_SLICE)
+		&& p->y >= WINDOW_MAP_START_Y && p->y <= (WINDOW_MAP_START_Y + MAP_SLICE)) {
+		Point p2 = normalize_click(&cfg->slices[cfg->current_slice], p->x, p->y);
+		Airplane *air = get_airplane_by_radius(cfg, p2, CLICK_THRESHOLD);
+		if (air != NULL && air->active) {
+			return air->id;
+		}
+	}
+
+	return IGNORE_ID;
 }
 
 Point normalize_click(Slice *slice, int x, int y) {
@@ -1404,7 +1430,8 @@ void update_double_dc(Config *cfg) {
 	PatBlt(cfg->double_dc, WINDOW_BTN3_START_X, WINDOW_BTN3_START_Y, WINDOW_BTN_SIZE_X, WINDOW_BTN_SIZE_Y, PATCOPY);
 	PatBlt(cfg->double_dc, WINDOW_BTN4_START_X, WINDOW_BTN4_START_Y, WINDOW_BTN_SIZE_Y, WINDOW_BTN_SIZE_X, PATCOPY);
 	// TODO verify mouse click
-	int id = click_id(cfg, &cfg->current_mouse_click_pos);
+	BOOL clicked = FALSE;
+	unsigned int id = click_id(cfg, &cfg->current_mouse_click_pos);
 	switch (id) {
 		case BTN1_ID:
 		{
@@ -1439,17 +1466,30 @@ void update_double_dc(Config *cfg) {
 			break;
 		}
 		default:
-			if (id > 0 && ((unsigned int) id) < cfg->max_airport) {
+			if (id > 0 && id < cfg->max_airport) {
 				// AIRPORT HAS BEEN CLICKED
+				Airport *ap = get_airport_by_id(cfg, id);
 				TCHAR buff[MAX_NAME] = { 0 };
-				Airport *ap = get_airport_by_id(cfg, (unsigned int) id);
 				format(buff, MAX_NAME, "Airport '%s' (ID: %d) clicked!", ap->name, ap->id);
 				MessageBox(cfg->hWnd, buff, _T(""), MB_OK);
+				clicked = TRUE;
 			}
 			break;
 	}
 	// TODO verify mouse hover
+	if (!clicked) {
+		id = hover_id(cfg, &cfg->current_mouse_pos);
+		if (id > cfg->max_airport && id <= (cfg->max_airport + cfg->max_airplane)) {
+			Airplane *airplane = get_airplane_by_id(cfg, id);
+			TCHAR buff[MAX_NAME] = { 0 };
+			format(buff, MAX_NAME, "Airplane '%s' (ID: %d) hovered!", airplane->name, airplane->id);
+			MessageBox(cfg->hWnd, buff, _T(""), MB_OK);
+		}
+	}
 	// TODO update map
+
+
+
 	TCHAR buffer[MAX_NAME] = { 0 };
 	Point p = normalize_click(&cfg->slices[cfg->current_slice], cfg->current_mouse_pos.x, cfg->current_mouse_pos.y);
 	_sntprintf_s(buffer, MAX_NAME, MAX_NAME, _T("Slice ID: %d -> X: %d, Y: %d"), cfg->current_slice, p.x, p.y);
@@ -1475,7 +1515,7 @@ BOOL CALLBACK DlgAddAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) {
 			switch (LOWORD(wParam)) {
 				case IDOK:
 				{
-					//add airport with all parameters
+					//add airplane with all parameters
 					GetDlgItemText(dlg, IDC_EDIT1, dlgName, MAX_NAME);
 					GetDlgItemText(dlg, IDC_EDIT2, dlgX, 5);
 					GetDlgItemText(dlg, IDC_EDIT3, dlgY, 5);
