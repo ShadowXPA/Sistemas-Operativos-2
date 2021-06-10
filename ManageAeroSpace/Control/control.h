@@ -38,11 +38,12 @@
 #define WINDOW_BTN4_START_X (WINDOW_MAP_START_X - WINDOW_BTN_SIZE_Y - 10)
 #define WINDOW_BTN4_START_Y WINDOW_MAP_START_Y
 
-#define CLICK_THRESHOLD 10
-#define BTN1_ID -1
-#define BTN2_ID -2
-#define BTN3_ID -3
-#define BTN4_ID -4
+#define CLICK_THRESHOLD 9
+#define IGNORE_ID ((unsigned int)-1000)
+#define BTN1_ID ((unsigned int)-1)
+#define BTN2_ID ((unsigned int)-2)
+#define BTN3_ID ((unsigned int)-3)
+#define BTN4_ID ((unsigned int)-4)
 
 #define CONTROL_NAME _T("Control")
 
@@ -144,6 +145,7 @@ Airplane *get_available_airplane(Config *);
 Passenger *get_available_passenger(Config *);
 Airport *get_airport_by_name(Config *, const TCHAR *);
 Airport *get_airport_by_name_or_radius(Config *, const TCHAR *, const Point, const unsigned int);
+Airplane *get_airplane_by_radius(Config *, const Point, const unsigned int);
 Airplane *get_airplane_by_name(Config *, const TCHAR *);
 Passenger *get_passenger_by_name(Config *, const TCHAR *);
 
@@ -183,6 +185,7 @@ void update_double_dc(Config *);
 
 Point normalize_click(Slice *, int, int);
 int click_id(Config *, Point *);
+int hover_id(Config *, Point *);
 BOOL CALLBACK DlgKickAirplane(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam);
 
 
