@@ -74,6 +74,16 @@ BEGIN
     END
 END
 
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Bitmap
+//
+
+IDB_AIRPORT             BITMAP                  "..\\..\\airport.bmp"
+
+IDB_AIRPLANE            BITMAP                  "..\\..\\airplane.bmp"
+
 #endif    // English (United States) resources
 /////////////////////////////////////////////////////////////////////////////
 

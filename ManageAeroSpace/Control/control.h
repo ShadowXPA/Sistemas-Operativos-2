@@ -109,6 +109,8 @@ typedef struct cfg {
 	MSG lpMsg;
 	WNDCLASSEX wcApp;
 
+	HBITMAP bmp_airport;
+	HBITMAP bmp_airplane;
 	HDC double_dc;
 
 	Slice *slices;
@@ -172,26 +174,25 @@ BOOL receive_message_namedpipe(PassengerConfig *, NamedPipeBuffer *);
 BOOL send_message_namedpipe(PassengerConfig *, NamedPipeBuffer *);
 void broadcast_message_namedpipe_in_airplane(Config *, NamedPipeBuffer *, Airplane *);
 
+BOOL CALLBACK DlgAddAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam);
+BOOL CALLBACK DlgRemoveAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam);
+BOOL CALLBACK DlgListAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam);
+BOOL CALLBACK DlgListAirplane(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam);
+BOOL CALLBACK DlgListPassenger(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam);
+BOOL CALLBACK DlgKickAirplane(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam);
+
 int find_slice(int, int);
 
 LRESULT CALLBACK handle_window_event(HWND, UINT, WPARAM, LPARAM);
 
-BOOL CALLBACK DlgAddAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam);
-BOOL CALLBACK DlgRemoveAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam);
-//Dialogs List
-BOOL CALLBACK DlgListAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam);
-BOOL CALLBACK DlgListAirplane(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam);
-BOOL CALLBACK DlgListPassenger(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam);
-
 DWORD WINAPI update_double_dc(void *);
 
 Point normalize_click(Slice *, int, int);
+Point unnormalize_click(Slice *, int, int);
 int click_id(Config *, Point *);
 int hover_id(Config *, Point *);
-BOOL CALLBACK DlgKickAirplane(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam);
 
 int get_num_airplanes_in_airport(Config *, Airport *);
 int get_num_passengers_in_airport(Config *, Airport *);
-
 
 #endif // !CONTROL_H

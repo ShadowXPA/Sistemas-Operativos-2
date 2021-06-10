@@ -9,6 +9,8 @@
 #define IDD_LIST                        112
 #define IDD_REMOVE_AIRPORT              114
 #define IDD_KICK_AIRPLANE               116
+#define IDB_AIRPORT                     119
+#define IDB_AIRPLANE                    120
 #define IDC_EDIT1                       1003
 #define IDC_EDIT2                       1005
 #define IDC_EDIT3                       1006
@@ -32,7 +34,7 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        119
+#define _APS_NEXT_RESOURCE_VALUE        121
 #define _APS_NEXT_COMMAND_VALUE         40012
 #define _APS_NEXT_CONTROL_VALUE         1011
 #define _APS_NEXT_SYMED_VALUE           101

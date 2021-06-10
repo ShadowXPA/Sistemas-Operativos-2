@@ -45,7 +45,7 @@ int WINAPI _tWinMain(_In_ HINSTANCE hInst, _In_opt_ HINSTANCE hPrevInst, _In_ LP
 //}
 
 void exit_control(Config *cfg) {
-	end_config(cfg);
+	end_config2(cfg);
 	free(cfg);
 	cfg = NULL;
 }

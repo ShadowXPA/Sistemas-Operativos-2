@@ -149,11 +149,20 @@ BOOL init_config2(Config *cfg, HINSTANCE hInst, int nCmdShow) {
 	return TRUE;
 }
 
+void end_config2(Config *cfg) {
+	DeleteObject(cfg->bmp_airport);
+	DeleteObject(cfg->bmp_airplane);
+	ReleaseDC(cfg->hWnd, cfg->double_dc);
+	CloseHandle(cfg->td_update_dc);
+	CloseHandle(cfg->evt_update_dc);
+	free(cfg->slices);
+	end_config(cfg);
+}
+
 void end_config(Config *cfg) {
 	free(cfg->airports);
 	free(cfg->airplanes);
 	free(cfg->passengers);
-	free(cfg->slices);
 	UnmapViewOfFile(cfg->memory);
 	CloseHandle(cfg->obj_map);
 	ReleaseMutex(cfg->mtx_instance);
@@ -1372,6 +1381,8 @@ LRESULT CALLBACK handle_window_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 				cfg->double_dc = double_dc;
 				cfg->max_window_size.x = max_width;
 				cfg->max_window_size.y = max_height;
+				cfg->bmp_airport = LoadBitmap(cfg->hInst, MAKEINTRESOURCE(IDB_AIRPORT));
+				cfg->bmp_airplane = LoadBitmap(cfg->hInst, MAKEINTRESOURCE(IDB_AIRPLANE));
 				cfg->td_update_dc = CreateThread(NULL, 0, update_double_dc, cfg, 0, NULL);
 				if (cfg->td_update_dc == NULL)
 					PostQuitMessage(0);
@@ -1390,8 +1401,6 @@ LRESULT CALLBACK handle_window_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 			if (answer == IDYES) {
 				cfg->die = TRUE;
 				WaitForSingleObject(cfg->td_update_dc, INFINITE);
-				CloseHandle(cfg->td_update_dc);
-				CloseHandle(cfg->evt_update_dc);
 				PostQuitMessage(0);
 			}
 			break;
@@ -1454,6 +1463,16 @@ Point normalize_click(Slice *slice, int x, int y) {
 	return p;
 }
 
+Point unnormalize_click(Slice *slice, int x, int y) {
+	Point p = { -1 };
+	if (x >= slice->line.x && x <= slice->column.x
+		&& y >= slice->line.y && y <= slice->column.y) {
+		p.x = x + WINDOW_MAP_START_X - slice->line.x;
+		p.y = y + WINDOW_MAP_START_Y - slice->line.y;
+	}
+	return p;
+}
+
 DWORD WINAPI update_double_dc(void *param) {
 	Config *cfg = (Config *) param;
 	while (!cfg->die) {
@@ -1466,7 +1485,6 @@ DWORD WINAPI update_double_dc(void *param) {
 		PatBlt(cfg->double_dc, WINDOW_BTN2_START_X, WINDOW_BTN2_START_Y, WINDOW_BTN_SIZE_Y, WINDOW_BTN_SIZE_X, PATCOPY);
 		PatBlt(cfg->double_dc, WINDOW_BTN3_START_X, WINDOW_BTN3_START_Y, WINDOW_BTN_SIZE_X, WINDOW_BTN_SIZE_Y, PATCOPY);
 		PatBlt(cfg->double_dc, WINDOW_BTN4_START_X, WINDOW_BTN4_START_Y, WINDOW_BTN_SIZE_Y, WINDOW_BTN_SIZE_X, PATCOPY);
-		// TODO verify mouse click
 		BOOL clicked = FALSE;
 		unsigned int id = click_id(cfg, &cfg->current_mouse_click_pos);
 		switch (id) {
@@ -1529,7 +1547,6 @@ DWORD WINAPI update_double_dc(void *param) {
 				}
 				break;
 		}
-		// TODO verify mouse hover
 		if (!clicked) {
 			id = hover_id(cfg, &cfg->current_mouse_pos);
 			if (id > cfg->max_airport && id <= (cfg->max_airport + cfg->max_airplane)) {
@@ -1556,13 +1573,31 @@ DWORD WINAPI update_double_dc(void *param) {
 				}
 			}
 		}
-		// TODO update map
-
-
-
+		HDC aux_dc = CreateCompatibleDC(cfg->double_dc);
+		for (unsigned int i = 1; i <= cfg->max_airport; i++) {
+			Airport *airport = get_airport_by_id(cfg, i);
+			if (airport != NULL && airport->active) {
+				Point p = unnormalize_click(&cfg->slices[cfg->current_slice], airport->coordinates.x, airport->coordinates.y);
+				if (p.x != -1 && p.y != -1) {
+					SelectObject(aux_dc, cfg->bmp_airport);
+					BitBlt(cfg->double_dc, p.x, p.y, 9, 9, aux_dc, 0, 0, SRCCOPY);
+				}
+			}
+		}
+		for (unsigned int i = (cfg->max_airport + 1); i <= (cfg->max_airport + cfg->max_airplane); i++) {
+			Airplane *airplane = get_airplane_by_id(cfg, i);
+			if (airplane != NULL && airplane->active && airplane->flying) {
+				Point p = unnormalize_click(&cfg->slices[cfg->current_slice], airplane->coordinates.x, airplane->coordinates.y);
+				if (p.x != -1 && p.y != -1) {
+					SelectObject(aux_dc, cfg->bmp_airplane);
+					BitBlt(cfg->double_dc, p.x, p.y, 9, 9, aux_dc, 0, 0, SRCCOPY);
+				}
+			}
+		}
+		DeleteDC(aux_dc);
 		TCHAR buffer[MAX_NAME] = { 0 };
 		Point p = normalize_click(&cfg->slices[cfg->current_slice], cfg->current_mouse_pos.x, cfg->current_mouse_pos.y);
-		_sntprintf_s(buffer, MAX_NAME, MAX_NAME, _T("Slice ID: %d -> (x: %d, y: %d)"), cfg->current_slice, p.x, p.y);
+		format(buffer, MAX_NAME, "Slice ID: %d -> (x: %d, y: %d)", cfg->current_slice, p.x, p.y);
 		TextOut(cfg->double_dc, 10, 10, buffer, _tcsclen(buffer));
 		InvalidateRect(cfg->hWnd, NULL, TRUE);
 		WaitForSingleObject(cfg->evt_update_dc, 1000);
