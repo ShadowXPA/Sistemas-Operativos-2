@@ -38,6 +38,8 @@
 #define WINDOW_BTN4_START_X (WINDOW_MAP_START_X - WINDOW_BTN_SIZE_Y - 10)
 #define WINDOW_BTN4_START_Y WINDOW_MAP_START_Y
 
+#define BMP_SIZE 9
+
 #define CLICK_THRESHOLD 9
 #define IGNORE_ID ((unsigned int)-1000)
 #define BTN1_ID ((unsigned int)-1)
@@ -130,6 +132,7 @@ void init_windows(Config *);
 BOOL init_config(Config *);
 BOOL init_config2(Config *, HINSTANCE, int nCmdShow);
 
+void end_config2(Config *);
 void end_config(Config *);
 void init_control(Config *);
 
@@ -187,8 +190,8 @@ LRESULT CALLBACK handle_window_event(HWND, UINT, WPARAM, LPARAM);
 
 DWORD WINAPI update_double_dc(void *);
 
-Point normalize_click(Slice *, int, int);
-Point unnormalize_click(Slice *, int, int);
+Point normalize_click(Slice *, unsigned int, unsigned int);
+Point unnormalize_click(Slice *, unsigned int, unsigned int);
 int click_id(Config *, Point *);
 int hover_id(Config *, Point *);
 

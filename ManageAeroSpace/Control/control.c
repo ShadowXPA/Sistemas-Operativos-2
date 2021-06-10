@@ -1454,16 +1454,17 @@ int hover_id(Config *cfg, Point *p) {
 	return IGNORE_ID;
 }
 
-Point normalize_click(Slice *slice, int x, int y) {
+Point normalize_click(Slice *slice, unsigned int x, unsigned int y) {
 	Point p = { 0 };
-	if (!(x < WINDOW_MAP_START_X || x > WINDOW_MAP_START_X + MAP_SLICE) && !(y < WINDOW_MAP_START_Y || y > WINDOW_MAP_START_Y + MAP_SLICE)) {
+	if (!(x < WINDOW_MAP_START_X || x > WINDOW_MAP_START_X + MAP_SLICE)
+		&& !(y < WINDOW_MAP_START_Y || y > WINDOW_MAP_START_Y + MAP_SLICE)) {
 		p.x = x - WINDOW_MAP_START_X + slice->line.x;
 		p.y = y - WINDOW_MAP_START_Y + slice->line.y;
 	}
 	return p;
 }
 
-Point unnormalize_click(Slice *slice, int x, int y) {
+Point unnormalize_click(Slice *slice, unsigned int x, unsigned int y) {
 	Point p = { -1 };
 	if (x >= slice->line.x && x <= slice->column.x
 		&& y >= slice->line.y && y <= slice->column.y) {
@@ -1580,7 +1581,7 @@ DWORD WINAPI update_double_dc(void *param) {
 				Point p = unnormalize_click(&cfg->slices[cfg->current_slice], airport->coordinates.x, airport->coordinates.y);
 				if (p.x != -1 && p.y != -1) {
 					SelectObject(aux_dc, cfg->bmp_airport);
-					BitBlt(cfg->double_dc, p.x, p.y, 9, 9, aux_dc, 0, 0, SRCCOPY);
+					BitBlt(cfg->double_dc, p.x - (BMP_SIZE / 2), p.y - (BMP_SIZE / 2), BMP_SIZE, BMP_SIZE, aux_dc, 0, 0, SRCCOPY);
 				}
 			}
 		}
@@ -1590,7 +1591,7 @@ DWORD WINAPI update_double_dc(void *param) {
 				Point p = unnormalize_click(&cfg->slices[cfg->current_slice], airplane->coordinates.x, airplane->coordinates.y);
 				if (p.x != -1 && p.y != -1) {
 					SelectObject(aux_dc, cfg->bmp_airplane);
-					BitBlt(cfg->double_dc, p.x, p.y, 9, 9, aux_dc, 0, 0, SRCCOPY);
+					BitBlt(cfg->double_dc, p.x - (BMP_SIZE / 2), p.y - (BMP_SIZE / 2), BMP_SIZE, BMP_SIZE, aux_dc, 0, 0, SRCCOPY);
 				}
 			}
 		}
