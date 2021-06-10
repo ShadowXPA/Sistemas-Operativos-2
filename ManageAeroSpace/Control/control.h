@@ -102,6 +102,8 @@ typedef struct cfg {
 	HANDLE sem_itemA;					// Semaphore for items in BufferA
 	HANDLE mtx_A;						// Mutex for BufferA
 	// Windows
+	HANDLE td_update_dc;
+	HANDLE evt_update_dc;
 	HINSTANCE hInst;
 	HWND hWnd;
 	MSG lpMsg;
@@ -181,12 +183,15 @@ BOOL CALLBACK DlgListAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam);
 BOOL CALLBACK DlgListAirplane(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam);
 BOOL CALLBACK DlgListPassenger(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam);
 
-void update_double_dc(Config *);
+DWORD WINAPI update_double_dc(void *);
 
 Point normalize_click(Slice *, int, int);
 int click_id(Config *, Point *);
 int hover_id(Config *, Point *);
 BOOL CALLBACK DlgKickAirplane(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam);
+
+int get_num_airplanes_in_airport(Config *, Airport *);
+int get_num_passengers_in_airport(Config *, Airport *);
 
 
 #endif // !CONTROL_H

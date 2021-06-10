@@ -926,6 +926,28 @@ Airport *get_airport_by_name_or_radius(Config *cfg, const TCHAR *name, const Poi
 	return NULL;
 }
 
+int get_num_airplanes_in_airport(Config *cfg, Airport *airport) {
+	int tmp = 0;
+	for (unsigned int i = (cfg->max_airport + 1); i <= (cfg->max_airport + cfg->max_airplane); i++) {
+		Airplane *airplane = get_airplane_by_id(cfg, i);
+		if (airplane != NULL && airplane->active && !airplane->flying && airplane->airport_start.id == airport->id) {
+			tmp++;
+		}
+	}
+	return tmp;
+}
+
+int get_num_passengers_in_airport(Config *cfg, Airport *airport) {
+	int tmp = 0;
+	for (unsigned int i = (cfg->max_airport + cfg->max_airplane + 1); i <= (cfg->max_airport + cfg->max_airplane + cfg->max_passenger); i++) {
+		Passenger *passenger = get_passenger_by_id(cfg, i);
+		if (passenger != NULL && passenger->active && passenger->airplane.id == 0 && passenger->airport.id == airport->id) {
+			tmp++;
+		}
+	}
+	return tmp;
+}
+
 Airplane *get_airplane_by_radius(Config *cfg, const Point coord, const unsigned int radius) {
 	for (unsigned int i = (cfg->max_airport + 1); i <= (cfg->max_airport + cfg->max_airplane); i++) {
 		Airplane *airplane = get_airplane_by_id(cfg, i);
@@ -1302,12 +1324,12 @@ LRESULT CALLBACK handle_window_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 				}
 				case ID_KICKAIRPLANE:
 				{
-					DialogBoxParam(cfg->hInst, MAKEINTRESOURCE(IDD_KICK_AIRPLANE), hWnd, DlgKickAirplane, (LPARAM)cfg);
+					DialogBoxParam(cfg->hInst, MAKEINTRESOURCE(IDD_KICK_AIRPLANE), hWnd, DlgKickAirplane, (LPARAM) cfg);
 					break;
 				}
 				case ID_OTHER_ABOUT:
 				{
-					MessageBox(hWnd, _T("Trabalho realizado por:\nLeandro Fidalgo - 2017017144\nPedro Alves - 2019112789") , _T("About"), MB_OK | MB_TASKMODAL | MB_ICONINFORMATION);
+					MessageBox(hWnd, _T("Trabalho realizado por:\nLeandro Fidalgo - 2017017144\nPedro Alves - 2019112789"), _T("About"), MB_OK | MB_TASKMODAL | MB_ICONINFORMATION);
 					break;
 				}
 				case ID_EXIT:
@@ -1325,14 +1347,18 @@ LRESULT CALLBACK handle_window_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 		{
 			cfg->current_mouse_click_pos.x = GET_X_LPARAM(lParam);
 			cfg->current_mouse_click_pos.y = GET_Y_LPARAM(lParam);
-			update_double_dc(cfg);
+			SetEvent(cfg->evt_update_dc);
+			//update_double_dc(cfg);
 			break;
 		}
 		case WM_MOUSEMOVE:
 		{
 			cfg->current_mouse_pos.x = GET_X_LPARAM(lParam);
 			cfg->current_mouse_pos.y = GET_Y_LPARAM(lParam);
-			update_double_dc(cfg);
+			cfg->current_mouse_click_pos.x = 0;
+			cfg->current_mouse_click_pos.y = 0;
+			SetEvent(cfg->evt_update_dc);
+			//update_double_dc(cfg);
 			break;
 		}
 		case WM_ERASEBKGND:
@@ -1346,20 +1372,28 @@ LRESULT CALLBACK handle_window_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 				cfg->double_dc = double_dc;
 				cfg->max_window_size.x = max_width;
 				cfg->max_window_size.y = max_height;
+				cfg->td_update_dc = CreateThread(NULL, 0, update_double_dc, cfg, 0, NULL);
+				if (cfg->td_update_dc == NULL)
+					PostQuitMessage(0);
+				cfg->evt_update_dc = CreateEvent(NULL, TRUE, FALSE, NULL);
+				if (cfg->evt_update_dc == NULL)
+					PostQuitMessage(0);
 			}
 			hdc = BeginPaint(hWnd, &paint);
 			BitBlt(hdc, 0, 0, width, height, double_dc, 0, 0, SRCCOPY);
 			EndPaint(hWnd, &paint);
-			// TODO
 			break;
 		}
 		case WM_CLOSE:
 		{
 			UINT answer = MessageBox(hWnd, _T("Do you wish to exit?"), _T("Exiting application!"), MB_YESNO | MB_TASKMODAL | MB_ICONEXCLAMATION);
 			if (answer == IDYES) {
+				cfg->die = TRUE;
+				WaitForSingleObject(cfg->td_update_dc, INFINITE);
+				CloseHandle(cfg->td_update_dc);
+				CloseHandle(cfg->evt_update_dc);
 				PostQuitMessage(0);
 			}
-			// TODO
 			break;
 		}
 		default:
@@ -1420,84 +1454,122 @@ Point normalize_click(Slice *slice, int x, int y) {
 	return p;
 }
 
-void update_double_dc(Config *cfg) {
-	SelectObject(cfg->double_dc, GetStockObject(DKGRAY_BRUSH));
-	PatBlt(cfg->double_dc, 0, 0, cfg->max_window_size.x, cfg->max_window_size.y, PATCOPY);
-	SelectObject(cfg->double_dc, GetStockObject(WHITE_BRUSH));
-	PatBlt(cfg->double_dc, WINDOW_MAP_START_X, WINDOW_MAP_START_Y, MAP_SLICE, MAP_SLICE, PATCOPY);
-	PatBlt(cfg->double_dc, WINDOW_LOG_START_X, WINDOW_LOG_START_Y, WINDOW_LOG_SIZE_X, WINDOW_LOG_SIZE_Y, PATCOPY);
-	PatBlt(cfg->double_dc, WINDOW_BTN1_START_X, WINDOW_BTN1_START_Y, WINDOW_BTN_SIZE_X, WINDOW_BTN_SIZE_Y, PATCOPY);
-	PatBlt(cfg->double_dc, WINDOW_BTN2_START_X, WINDOW_BTN2_START_Y, WINDOW_BTN_SIZE_Y, WINDOW_BTN_SIZE_X, PATCOPY);
-	PatBlt(cfg->double_dc, WINDOW_BTN3_START_X, WINDOW_BTN3_START_Y, WINDOW_BTN_SIZE_X, WINDOW_BTN_SIZE_Y, PATCOPY);
-	PatBlt(cfg->double_dc, WINDOW_BTN4_START_X, WINDOW_BTN4_START_Y, WINDOW_BTN_SIZE_Y, WINDOW_BTN_SIZE_X, PATCOPY);
-	// TODO verify mouse click
-	BOOL clicked = FALSE;
-	unsigned int id = click_id(cfg, &cfg->current_mouse_click_pos);
-	switch (id) {
-		case BTN1_ID:
-		{
-			// UP
-			if (cfg->current_slice - NUM_SLICE >= 0) {
-				cfg->current_slice -= NUM_SLICE;
+DWORD WINAPI update_double_dc(void *param) {
+	Config *cfg = (Config *) param;
+	while (!cfg->die) {
+		SelectObject(cfg->double_dc, GetStockObject(DKGRAY_BRUSH));
+		PatBlt(cfg->double_dc, 0, 0, cfg->max_window_size.x, cfg->max_window_size.y, PATCOPY);
+		SelectObject(cfg->double_dc, GetStockObject(WHITE_BRUSH));
+		PatBlt(cfg->double_dc, WINDOW_MAP_START_X, WINDOW_MAP_START_Y, MAP_SLICE, MAP_SLICE, PATCOPY);
+		PatBlt(cfg->double_dc, WINDOW_LOG_START_X, WINDOW_LOG_START_Y, WINDOW_LOG_SIZE_X, WINDOW_LOG_SIZE_Y, PATCOPY);
+		PatBlt(cfg->double_dc, WINDOW_BTN1_START_X, WINDOW_BTN1_START_Y, WINDOW_BTN_SIZE_X, WINDOW_BTN_SIZE_Y, PATCOPY);
+		PatBlt(cfg->double_dc, WINDOW_BTN2_START_X, WINDOW_BTN2_START_Y, WINDOW_BTN_SIZE_Y, WINDOW_BTN_SIZE_X, PATCOPY);
+		PatBlt(cfg->double_dc, WINDOW_BTN3_START_X, WINDOW_BTN3_START_Y, WINDOW_BTN_SIZE_X, WINDOW_BTN_SIZE_Y, PATCOPY);
+		PatBlt(cfg->double_dc, WINDOW_BTN4_START_X, WINDOW_BTN4_START_Y, WINDOW_BTN_SIZE_Y, WINDOW_BTN_SIZE_X, PATCOPY);
+		// TODO verify mouse click
+		BOOL clicked = FALSE;
+		unsigned int id = click_id(cfg, &cfg->current_mouse_click_pos);
+		switch (id) {
+			case BTN1_ID:
+			{
+				// UP
+				if (cfg->current_slice - NUM_SLICE >= 0) {
+					cfg->current_slice -= NUM_SLICE;
+				}
+				break;
 			}
-			break;
+			case BTN2_ID:
+			{
+				// RIGHT
+				if (cfg->current_slice + 1 < (NUM_SLICE * NUM_SLICE)) {
+					cfg->current_slice++;
+				}
+				break;
+			}
+			case BTN3_ID:
+			{
+				// BOTTOM
+				if (cfg->current_slice + NUM_SLICE < (NUM_SLICE * NUM_SLICE)) {
+					cfg->current_slice += NUM_SLICE;
+				}
+				break;
+			}
+			case BTN4_ID:
+			{
+				// LEFT
+				if (cfg->current_slice - 1 >= 0) {
+					cfg->current_slice--;
+				}
+				break;
+			}
+			default:
+				if (id > 0 && id < cfg->max_airport) {
+					// AIRPORT HAS BEEN CLICKED
+					Airport *ap = get_airport_by_id(cfg, id);
+					if (ap != NULL && ap->active) {
+						TCHAR buff[MAX_NAME] = { 0 };
+						int indexX = 5;
+						int indexY = 5;
+						format(buff, MAX_NAME, "Airport: '%s' (ID: %d)", ap->name, ap->id);
+						TextOut(cfg->double_dc, WINDOW_LOG_START_X + indexX, WINDOW_LOG_START_Y + indexY, buff, _tcsclen(buff));
+						indexX += 10;
+						indexY += 20;
+						format(buff, MAX_NAME, "Current position: (x: %u, y: %u)", ap->coordinates.x, ap->coordinates.y);
+						TextOut(cfg->double_dc, WINDOW_LOG_START_X + indexX, WINDOW_LOG_START_Y + indexY, buff, _tcsclen(buff));
+						indexY += 20;
+						int capacity = get_num_airplanes_in_airport(cfg, ap);
+						format(buff, MAX_NAME, "No. Airplanes: %d", capacity);
+						TextOut(cfg->double_dc, WINDOW_LOG_START_X + indexX, WINDOW_LOG_START_Y + indexY, buff, _tcsclen(buff));
+						indexY += 20;
+						capacity = get_num_passengers_in_airport(cfg, ap);
+						format(buff, MAX_NAME, "No. Passengers: %d", capacity);
+						TextOut(cfg->double_dc, WINDOW_LOG_START_X + indexX, WINDOW_LOG_START_Y + indexY, buff, _tcsclen(buff));
+						clicked = TRUE;
+					}
+				}
+				break;
 		}
-		case BTN2_ID:
-		{
-			// RIGHT
-			if (cfg->current_slice + 1 < (NUM_SLICE * NUM_SLICE)) {
-				cfg->current_slice++;
+		// TODO verify mouse hover
+		if (!clicked) {
+			id = hover_id(cfg, &cfg->current_mouse_pos);
+			if (id > cfg->max_airport && id <= (cfg->max_airport + cfg->max_airplane)) {
+				Airplane *airplane = get_airplane_by_id(cfg, id);
+				if (airplane != NULL && airplane->active && airplane->flying) {
+					TCHAR buff[MAX_NAME] = { 0 };
+					int indexX = 5;
+					int indexY = 5;
+					format(buff, MAX_NAME, "Airplane: '%s' (ID: %d)", airplane->name, airplane->id);
+					TextOut(cfg->double_dc, WINDOW_LOG_START_X + indexX, WINDOW_LOG_START_Y + indexY, buff, _tcsclen(buff));
+					indexX += 10;
+					indexY += 20;
+					format(buff, MAX_NAME, "Current position: (x: %u, y: %u)", airplane->coordinates.x, airplane->coordinates.y);
+					TextOut(cfg->double_dc, WINDOW_LOG_START_X + indexX, WINDOW_LOG_START_Y + indexY, buff, _tcsclen(buff));
+					indexY += 20;
+					format(buff, MAX_NAME, "Passengers: %d", airplane->capacity);
+					TextOut(cfg->double_dc, WINDOW_LOG_START_X + indexX, WINDOW_LOG_START_Y + indexY, buff, _tcsclen(buff));
+					indexY += 20;
+					format(buff, MAX_NAME, "Departure: '%s' (x: %u, y: %u)", airplane->airport_start.name, airplane->airport_start.coordinates.x, airplane->airport_start.coordinates.y);
+					TextOut(cfg->double_dc, WINDOW_LOG_START_X + indexX, WINDOW_LOG_START_Y + indexY, buff, _tcsclen(buff));
+					indexY += 20;
+					format(buff, MAX_NAME, "Arrival: '%s' (x: %u, y: %u)", airplane->airport_end.name, airplane->airport_end.coordinates.x, airplane->airport_end.coordinates.y);
+					TextOut(cfg->double_dc, WINDOW_LOG_START_X + indexX, WINDOW_LOG_START_Y + indexY, buff, _tcsclen(buff));
+				}
 			}
-			break;
 		}
-		case BTN3_ID:
-		{
-			// BOTTOM
-			if (cfg->current_slice + NUM_SLICE < (NUM_SLICE * NUM_SLICE)) {
-				cfg->current_slice += NUM_SLICE;
-			}
-			break;
-		}
-		case BTN4_ID:
-		{
-			// LEFT
-			if (cfg->current_slice - 1 >= 0) {
-				cfg->current_slice--;
-			}
-			break;
-		}
-		default:
-			if (id > 0 && id < cfg->max_airport) {
-				// AIRPORT HAS BEEN CLICKED
-				Airport *ap = get_airport_by_id(cfg, id);
-				TCHAR buff[MAX_NAME] = { 0 };
-				format(buff, MAX_NAME, "Airport '%s' (ID: %d) clicked!", ap->name, ap->id);
-				MessageBox(cfg->hWnd, buff, _T(""), MB_OK);
-				clicked = TRUE;
-			}
-			break;
+		// TODO update map
+
+
+
+		TCHAR buffer[MAX_NAME] = { 0 };
+		Point p = normalize_click(&cfg->slices[cfg->current_slice], cfg->current_mouse_pos.x, cfg->current_mouse_pos.y);
+		_sntprintf_s(buffer, MAX_NAME, MAX_NAME, _T("Slice ID: %d -> (x: %d, y: %d)"), cfg->current_slice, p.x, p.y);
+		TextOut(cfg->double_dc, 10, 10, buffer, _tcsclen(buffer));
+		InvalidateRect(cfg->hWnd, NULL, TRUE);
+		WaitForSingleObject(cfg->evt_update_dc, 1000);
+		ResetEvent(cfg->evt_update_dc);
 	}
-	// TODO verify mouse hover
-	if (!clicked) {
-		id = hover_id(cfg, &cfg->current_mouse_pos);
-		if (id > cfg->max_airport && id <= (cfg->max_airport + cfg->max_airplane)) {
-			Airplane *airplane = get_airplane_by_id(cfg, id);
-			TCHAR buff[MAX_NAME] = { 0 };
-			format(buff, MAX_NAME, "Airplane '%s' (ID: %d) hovered!", airplane->name, airplane->id);
-			MessageBox(cfg->hWnd, buff, _T(""), MB_OK);
-		}
-	}
-	// TODO update map
 
-
-
-	TCHAR buffer[MAX_NAME] = { 0 };
-	Point p = normalize_click(&cfg->slices[cfg->current_slice], cfg->current_mouse_pos.x, cfg->current_mouse_pos.y);
-	_sntprintf_s(buffer, MAX_NAME, MAX_NAME, _T("Slice ID: %d -> X: %d, Y: %d"), cfg->current_slice, p.x, p.y);
-	TextOut(cfg->double_dc, 10, 10, buffer, _tcsclen(buffer));
-	cfg->current_mouse_click_pos.x = 0;
-	cfg->current_mouse_click_pos.y = 0;
-	InvalidateRect(cfg->hWnd, NULL, TRUE);
+	return 0;
 }
 
 BOOL CALLBACK DlgAddAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) {
@@ -1535,10 +1607,10 @@ BOOL CALLBACK DlgAddAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) {
 					LeaveCriticalSection(&cfg->cs_airport);
 					if (added) {
 						MessageBox(dlg, _T("Airport added with success."), _T("Adding airport."), MB_OK | MB_TASKMODAL | MB_ICONINFORMATION);
+						EndDialog(dlg, IDOK);
 					} else {
 						MessageBox(dlg, _T("Airport not added!"), _T("Error!"), MB_OK | MB_TASKMODAL | MB_ICONERROR);
 					}
-					EndDialog(dlg, IDOK);
 					return TRUE;
 				}
 				case IDCANCEL:
@@ -1584,14 +1656,14 @@ BOOL CALLBACK DlgRemoveAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam)
 					LeaveCriticalSection(&cfg->cs_airport);
 					if (added) {
 						MessageBox(dlg, _T("Airport removed with success!"), _T("Removing airport."), MB_OK | MB_TASKMODAL | MB_ICONINFORMATION);
-					}
-					else {
+						EndDialog(dlg, IDOK);
+					} else {
 						MessageBox(dlg, _T("Airport not removed!"), _T("Error!"), MB_OK | MB_TASKMODAL | MB_ICONERROR);
 					}
-					EndDialog(dlg, IDOK);
 					return TRUE;
 				}
-				case IDCANCEL: {
+				case IDCANCEL:
+				{
 					EndDialog(dlg, IDOK);
 					return TRUE;
 				}
@@ -1617,10 +1689,10 @@ BOOL CALLBACK DlgListAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) {
 			cfg = (Config *) lParam;
 			for (unsigned int i = 1; i <= cfg->max_airport; i++) {
 				Airport *airport = get_airport_by_id(cfg, i);
-				HWND hwndList = GetDlgItem(dlg,IDC_LIST_ITEMS);
+				HWND hwndList = GetDlgItem(dlg, IDC_LIST_ITEMS);
 				if (airport != NULL && airport->active) {
 					format(dlgStr, 1000, "Name: '%s' (ID: %u) Coordinates: (x: %u, y: %u)", airport->name, airport->id, airport->coordinates.x, airport->coordinates.y);
-					int pos = (int)SendMessage(hwndList, LB_ADDSTRING, 0, (LPARAM) dlgStr);
+					int pos = (int) SendMessage(hwndList, LB_ADDSTRING, 0, (LPARAM) dlgStr);
 					SendMessage(hwndList, LB_SETITEMDATA, pos, (LPARAM) i);
 				}
 			}
@@ -1634,7 +1706,8 @@ BOOL CALLBACK DlgListAirport(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) {
 					EndDialog(dlg, IDOK);
 					return TRUE;
 				}
-				default: {
+				default:
+				{
 					return TRUE;
 				}
 			}
@@ -1664,8 +1737,8 @@ BOOL CALLBACK DlgListAirplane(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) 
 					format(dlgStr, 1000, "Name: '%s' (ID: %u, PID: %u) Velocity: %d Capacity: %d Max. Capacity: %d Coordinates: (x: %u, y: %u) Departure: '%s' (ID: %u) Destination: '%s' (ID: %u)",
 						airplane->name, airplane->id, airplane->pid, airplane->velocity, airplane->capacity, airplane->max_capacity, airplane->coordinates.x, airplane->coordinates.y,
 						departure.name, departure.id, destination.name, destination.id);
-					int pos = (int)SendMessage(hwndList, LB_ADDSTRING, 0, (LPARAM)dlgStr);
-					SendMessage(hwndList, LB_SETITEMDATA, pos, (LPARAM)i);
+					int pos = (int) SendMessage(hwndList, LB_ADDSTRING, 0, (LPARAM) dlgStr);
+					SendMessage(hwndList, LB_SETITEMDATA, pos, (LPARAM) i);
 				}
 			}
 			return TRUE;
@@ -1678,7 +1751,8 @@ BOOL CALLBACK DlgListAirplane(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) 
 					EndDialog(dlg, IDOK);
 					return TRUE;
 				}
-				default: {
+				default:
+				{
 					return TRUE;
 				}
 			}
@@ -1707,14 +1781,14 @@ BOOL CALLBACK DlgListPassenger(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam)
 					if (passenger->airplane.pid) {
 						Airplane airplane = passenger->airplane;
 						format(dlgStr, 1000, "Name: '%s' (ID: %u) Destination: '%s' (ID: %u) Flying on: '%s' (ID: %u, PID: %u) Coordinates: (x: %u, y: %u)", passenger->name, passenger->id, destination.name, destination.id, airplane.name, airplane.id, airplane.pid, airplane.coordinates.x, airplane.coordinates.y);
-						int pos = (int)SendMessage(hwndList, LB_ADDSTRING, 0, (LPARAM)dlgStr);
-						SendMessage(hwndList, LB_SETITEMDATA, pos, (LPARAM)i);
+						int pos = (int) SendMessage(hwndList, LB_ADDSTRING, 0, (LPARAM) dlgStr);
+						SendMessage(hwndList, LB_SETITEMDATA, pos, (LPARAM) i);
 					} else {
 						Airport current_airport = passenger->airport;
 						format(dlgStr, 1000, "Name: '%s' (ID: %u) Destination: '%s' (ID: %u) Waiting for airplane at: '%s' (ID: %u) Coordinates: (x: %u, y: %u) Waiting time left: %u", passenger->name, passenger->id, destination.name, destination.id, current_airport.name, current_airport.id,
 							current_airport.coordinates.x, current_airport.coordinates.y, passenger->wait_time);
-						int pos = (int)SendMessage(hwndList, LB_ADDSTRING, 0, (LPARAM)dlgStr);
-						SendMessage(hwndList, LB_SETITEMDATA, pos, (LPARAM)i);
+						int pos = (int) SendMessage(hwndList, LB_ADDSTRING, 0, (LPARAM) dlgStr);
+						SendMessage(hwndList, LB_SETITEMDATA, pos, (LPARAM) i);
 					}
 				}
 			}
@@ -1728,7 +1802,8 @@ BOOL CALLBACK DlgListPassenger(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam)
 					EndDialog(dlg, IDOK);
 					return TRUE;
 				}
-				default: {
+				default:
+				{
 					return TRUE;
 				}
 			}
@@ -1744,71 +1819,72 @@ BOOL CALLBACK DlgListPassenger(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam)
 
 BOOL CALLBACK DlgKickAirplane(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) {
 	TCHAR dlgStr[4] = { 0 };
-	TCHAR dlgText[200] = { 0 };
-	static Config* cfg;
+	TCHAR dlgText[MAX_NAME] = { 0 };
+	static Config *cfg;
 	switch (msg) {
-	case WM_INITDIALOG:
-	{
-		cfg = (Config*)lParam;
-		return TRUE;
-	}
-	case WM_COMMAND:
-	{
-		switch (LOWORD(wParam)) {
-			case IDOK:
-			{
-				GetDlgItemText(dlg, IDC_KICK_EDIT, dlgStr, 4);
-				if (dlgStr[0] == '\0') {
-					MessageBox(dlg, _T("The parameter is empty!"), _T("Error!"), MB_OK | MB_TASKMODAL | MB_ICONERROR);
+		case WM_INITDIALOG:
+		{
+			cfg = (Config *) lParam;
+			return TRUE;
+		}
+		case WM_COMMAND:
+		{
+			switch (LOWORD(wParam)) {
+				case IDOK:
+				{
+					GetDlgItemText(dlg, IDC_KICK_EDIT, dlgStr, 4);
+					if (dlgStr[0] == '\0') {
+						MessageBox(dlg, _T("The parameter is empty!"), _T("Error!"), MB_OK | MB_TASKMODAL | MB_ICONERROR);
+						EndDialog(dlg, IDOK);
+						return TRUE;
+					}
+					int id = _tstoi(dlgStr);
+					BOOL removed = FALSE;
+					EnterCriticalSection(&cfg->cs_airplane);
+					Airplane *airplane = get_airplane_by_id(cfg, id);
+					int pid = 0;
+					if (airplane != NULL && airplane->active) {
+						airplane->alive = 0;
+						pid = airplane->pid;
+						removed = _remove_airplane(cfg, airplane);
+					}
+					LeaveCriticalSection(&cfg->cs_airplane);
+					//TODO
+					if (removed) {
+						SharedBuffer sb;
+						sb.cmd_id = CMD_SHUTDOWN;
+						sb.to_id = pid;
+						sb.from_id = 0;
+						send_command_sharedmemory(cfg, &sb);
+						format(dlgText, MAX_NAME, "Airplane (ID: %u, PID: %u) removed!", id, pid);
+						MessageBox(dlg, dlgText, _T("Removing Airplane"), MB_OK | MB_TASKMODAL | MB_ICONINFORMATION);
+					} else {
+						if (!(airplane != NULL && airplane->active)) {
+							MessageBox(dlg, _T("Airplane does not exist!"), _T("Error!"), MB_OK | MB_TASKMODAL | MB_ICONERROR);
+						} else {
+							format(dlgText, MAX_NAME, "Airplane (ID: %u) not removed!", id);
+							MessageBox(dlg, dlgText, _T("Error!"), MB_OK | MB_TASKMODAL | MB_ICONERROR);
+						}
+					}
 					EndDialog(dlg, IDOK);
 					return TRUE;
 				}
-				int id = _tstoi(dlgStr);
-				EnterCriticalSection(&cfg->cs_airplane);
-				Airplane* airplane = get_airplane_by_id(cfg, id);
-				BOOL removed = FALSE;
-				int pid = 0;
-				if (airplane != NULL && airplane->active) {
-					airplane->alive = 0;
-					pid = airplane->pid;
-					removed = _remove_airplane(cfg, airplane);
+				case IDCANCEL:
+				{
+					EndDialog(dlg, IDOK);
+					return TRUE;
 				}
-				LeaveCriticalSection(&cfg->cs_airplane);
-				//TODO
-				if (!(airplane != NULL && airplane->active)) {
-					MessageBox(dlg, _T("Airplane does not exist!"), _T("Error!"), MB_OK | MB_TASKMODAL | MB_ICONERROR);
+				default:
+				{
+					return TRUE;
 				}
-				
-				if (removed) {
-					SharedBuffer sb;
-					sb.cmd_id = CMD_SHUTDOWN;
-					sb.to_id = pid;
-					sb.from_id = 0;
-					send_command_sharedmemory(cfg, &sb);
-					format(dlgText, 200, "Airplane (ID: %u, PID: %u) removed!\n", id, pid);
-					MessageBox(dlg, dlgText, _T("Removing Airplane"), MB_OK | MB_TASKMODAL | MB_ICONINFORMATION);
-				}
-				else {
-					format(dlgText, 200, "Airplane (ID: %u) not removed!\n", id);
-					MessageBox(dlg, dlgText, _T("Error!"), MB_OK | MB_TASKMODAL | MB_ICONERROR);
-				}
-				EndDialog(dlg, IDOK);
-				return TRUE;
-			}
-			case IDCANCEL: {
-				EndDialog(dlg, IDOK);
-				return TRUE;
-			}
-			default: {
-				return TRUE;
 			}
 		}
-	}
-	case WM_CLOSE:
-	{
-		EndDialog(dlg, IDOK);
-		return TRUE;
-	}
+		case WM_CLOSE:
+		{
+			EndDialog(dlg, IDOK);
+			return TRUE;
+		}
 	}
 	return FALSE;
 }
