@@ -1605,22 +1605,22 @@ DWORD WINAPI update_double_dc(void *param) {
 			}
 		}
 		//aux_dc = CreateCompatibleDC(cfg->double_dc);
+		SelectObject(aux_dc, cfg->bmp_airport);
 		for (unsigned int i = 1; i <= cfg->max_airport; i++) {
 			Airport *airport = get_airport_by_id(cfg, i);
 			if (airport != NULL && airport->active) {
 				Point p = unnormalize_click(&cfg->slices[cfg->current_slice], airport->coordinates.x, airport->coordinates.y);
 				if (p.x != -1 && p.y != -1) {
-					SelectObject(aux_dc, cfg->bmp_airport);
 					BitBlt(cfg->double_dc, p.x - (BMP_SIZE / 2), p.y - (BMP_SIZE / 2), BMP_SIZE, BMP_SIZE, aux_dc, 0, 0, SRCCOPY);
 				}
 			}
 		}
+		SelectObject(aux_dc, cfg->bmp_airplane);
 		for (unsigned int i = (cfg->max_airport + 1); i <= (cfg->max_airport + cfg->max_airplane); i++) {
 			Airplane *airplane = get_airplane_by_id(cfg, i);
 			if (airplane != NULL && airplane->active && airplane->flying) {
 				Point p = unnormalize_click(&cfg->slices[cfg->current_slice], airplane->coordinates.x, airplane->coordinates.y);
 				if (p.x != -1 && p.y != -1) {
-					SelectObject(aux_dc, cfg->bmp_airplane);
 					BitBlt(cfg->double_dc, p.x - (BMP_SIZE / 2), p.y - (BMP_SIZE / 2), BMP_SIZE, BMP_SIZE, aux_dc, 0, 0, SRCCOPY);
 				}
 			}

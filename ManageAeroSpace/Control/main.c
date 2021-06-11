@@ -2,7 +2,7 @@
 
 void exit_control(Config *);
 
-int WINAPI _tWinMain(_In_ HINSTANCE hInst, _In_opt_ HINSTANCE hPrevInst, _In_ LPSTR lpCmdLine, _In_ int nCmdShow) {
+int WINAPI _tWinMain(_In_ HINSTANCE hInst, _In_opt_ HINSTANCE hPrevInst, _In_ LPTSTR lpCmdLine, _In_ int nCmdShow) {
 #ifdef UNICODE
 	int i = _setmode(_fileno(stdin), _O_WTEXT);
 	i = _setmode(_fileno(stdout), _O_WTEXT);
