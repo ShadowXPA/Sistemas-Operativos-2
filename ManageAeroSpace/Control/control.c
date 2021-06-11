@@ -152,6 +152,7 @@ BOOL init_config2(Config *cfg, HINSTANCE hInst, int nCmdShow) {
 void end_config2(Config *cfg) {
 	DeleteObject(cfg->bmp_airport);
 	DeleteObject(cfg->bmp_airplane);
+	DeleteObject(cfg->bmp_arrows);
 	ReleaseDC(cfg->hWnd, cfg->double_dc);
 	CloseHandle(cfg->td_update_dc);
 	CloseHandle(cfg->evt_update_dc);
@@ -1382,6 +1383,22 @@ LRESULT CALLBACK handle_window_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 				cfg->max_window_size.y = max_height;
 				cfg->bmp_airport = LoadBitmap(cfg->hInst, MAKEINTRESOURCE(IDB_AIRPORT));
 				cfg->bmp_airplane = LoadBitmap(cfg->hInst, MAKEINTRESOURCE(IDB_AIRPLANE));
+				cfg->bmp_arrows = LoadBitmap(cfg->hInst, MAKEINTRESOURCE(IDB_ARROWS));
+				TCHAR buffer[MAX_NAME] = { 0 };
+				Point p = normalize_click(&cfg->slices[cfg->current_slice], cfg->current_mouse_pos.x, cfg->current_mouse_pos.y);
+				format(buffer, MAX_NAME, "Slice ID: %d -> (x: %d, y: %d)", cfg->current_slice, p.x, p.y);
+				TextOut(cfg->double_dc, 10, 10, buffer, _tcsclen(buffer));
+				HDC aux_dc = CreateCompatibleDC(cfg->double_dc);
+				int x = 0;
+				SelectObject(aux_dc, cfg->bmp_arrows);
+				BitBlt(cfg->double_dc, (WINDOW_BTN1_START_X + WINDOW_BTN_SIZE_X / 2) - (BMP_ARROW_SIZE / 2), (WINDOW_BTN1_START_Y + WINDOW_BTN_SIZE_Y / 2) - (BMP_ARROW_SIZE / 2), BMP_ARROW_SIZE, BMP_ARROW_SIZE, aux_dc, x, 0, SRCCOPY);
+				x += BMP_ARROW_SIZE + 1;
+				BitBlt(cfg->double_dc, (WINDOW_BTN2_START_X + WINDOW_BTN_SIZE_Y / 2) - (BMP_ARROW_SIZE / 2), (WINDOW_BTN2_START_Y + WINDOW_BTN_SIZE_X / 2) - (BMP_ARROW_SIZE / 2), BMP_ARROW_SIZE, BMP_ARROW_SIZE, aux_dc, x, 0, SRCCOPY);
+				x += BMP_ARROW_SIZE + 1;
+				BitBlt(cfg->double_dc, (WINDOW_BTN3_START_X + WINDOW_BTN_SIZE_X / 2) - (BMP_ARROW_SIZE / 2), (WINDOW_BTN3_START_Y + WINDOW_BTN_SIZE_Y / 2) - (BMP_ARROW_SIZE / 2), BMP_ARROW_SIZE, BMP_ARROW_SIZE, aux_dc, x, 0, SRCCOPY);
+				x += BMP_ARROW_SIZE + 1;
+				BitBlt(cfg->double_dc, (WINDOW_BTN4_START_X + WINDOW_BTN_SIZE_Y / 2) - (BMP_ARROW_SIZE / 2), (WINDOW_BTN4_START_Y + WINDOW_BTN_SIZE_X / 2) - (BMP_ARROW_SIZE / 2), BMP_ARROW_SIZE, BMP_ARROW_SIZE, aux_dc, x, 0, SRCCOPY);
+				DeleteDC(aux_dc);
 				cfg->td_update_dc = CreateThread(NULL, 0, update_double_dc, cfg, 0, NULL);
 				if (cfg->td_update_dc == NULL)
 					PostQuitMessage(0);
@@ -1475,7 +1492,10 @@ Point unnormalize_click(Slice *slice, unsigned int x, unsigned int y) {
 
 DWORD WINAPI update_double_dc(void *param) {
 	Config *cfg = (Config *) param;
+	HDC aux_dc;
+
 	while (!cfg->die) {
+		aux_dc = CreateCompatibleDC(cfg->double_dc);
 		SelectObject(cfg->double_dc, GetStockObject(DKGRAY_BRUSH));
 		PatBlt(cfg->double_dc, 0, 0, cfg->max_window_size.x, cfg->max_window_size.y, PATCOPY);
 		SelectObject(cfg->double_dc, GetStockObject(WHITE_BRUSH));
@@ -1485,6 +1505,17 @@ DWORD WINAPI update_double_dc(void *param) {
 		PatBlt(cfg->double_dc, WINDOW_BTN2_START_X, WINDOW_BTN2_START_Y, WINDOW_BTN_SIZE_Y, WINDOW_BTN_SIZE_X, PATCOPY);
 		PatBlt(cfg->double_dc, WINDOW_BTN3_START_X, WINDOW_BTN3_START_Y, WINDOW_BTN_SIZE_X, WINDOW_BTN_SIZE_Y, PATCOPY);
 		PatBlt(cfg->double_dc, WINDOW_BTN4_START_X, WINDOW_BTN4_START_Y, WINDOW_BTN_SIZE_Y, WINDOW_BTN_SIZE_X, PATCOPY);
+		//aux_dc = CreateCompatibleDC(cfg->double_dc);
+		int x = 0;
+		SelectObject(aux_dc, cfg->bmp_arrows);
+		BitBlt(cfg->double_dc, (WINDOW_BTN1_START_X + WINDOW_BTN_SIZE_X / 2) - (BMP_ARROW_SIZE / 2), (WINDOW_BTN1_START_Y + WINDOW_BTN_SIZE_Y / 2) - (BMP_ARROW_SIZE / 2), BMP_ARROW_SIZE, BMP_ARROW_SIZE, aux_dc, x, 0, SRCCOPY);
+		x += BMP_ARROW_SIZE + 1;
+		BitBlt(cfg->double_dc, (WINDOW_BTN2_START_X + WINDOW_BTN_SIZE_Y / 2) - (BMP_ARROW_SIZE / 2), (WINDOW_BTN2_START_Y + WINDOW_BTN_SIZE_X / 2) - (BMP_ARROW_SIZE / 2), BMP_ARROW_SIZE, BMP_ARROW_SIZE, aux_dc, x, 0, SRCCOPY);
+		x += BMP_ARROW_SIZE + 1;
+		BitBlt(cfg->double_dc, (WINDOW_BTN3_START_X + WINDOW_BTN_SIZE_X / 2) - (BMP_ARROW_SIZE / 2), (WINDOW_BTN3_START_Y + WINDOW_BTN_SIZE_Y / 2) - (BMP_ARROW_SIZE / 2), BMP_ARROW_SIZE, BMP_ARROW_SIZE, aux_dc, x, 0, SRCCOPY);
+		x += BMP_ARROW_SIZE + 1;
+		BitBlt(cfg->double_dc, (WINDOW_BTN4_START_X + WINDOW_BTN_SIZE_Y / 2) - (BMP_ARROW_SIZE / 2), (WINDOW_BTN4_START_Y + WINDOW_BTN_SIZE_X / 2) - (BMP_ARROW_SIZE / 2), BMP_ARROW_SIZE, BMP_ARROW_SIZE, aux_dc, x, 0, SRCCOPY);
+		//DeleteDC(aux_dc);
 		BOOL clicked = FALSE;
 		unsigned int id = click_id(cfg, &cfg->current_mouse_click_pos);
 		switch (id) {
@@ -1573,7 +1604,7 @@ DWORD WINAPI update_double_dc(void *param) {
 				}
 			}
 		}
-		HDC aux_dc = CreateCompatibleDC(cfg->double_dc);
+		//aux_dc = CreateCompatibleDC(cfg->double_dc);
 		for (unsigned int i = 1; i <= cfg->max_airport; i++) {
 			Airport *airport = get_airport_by_id(cfg, i);
 			if (airport != NULL && airport->active) {
@@ -1594,15 +1625,17 @@ DWORD WINAPI update_double_dc(void *param) {
 				}
 			}
 		}
-		DeleteDC(aux_dc);
+		//DeleteDC(aux_dc);
 		TCHAR buffer[MAX_NAME] = { 0 };
 		Point p = normalize_click(&cfg->slices[cfg->current_slice], cfg->current_mouse_pos.x, cfg->current_mouse_pos.y);
 		format(buffer, MAX_NAME, "Slice ID: %d -> (x: %d, y: %d)", cfg->current_slice, p.x, p.y);
 		TextOut(cfg->double_dc, 10, 10, buffer, _tcsclen(buffer));
+		DeleteDC(aux_dc);
 		InvalidateRect(cfg->hWnd, NULL, TRUE);
 		WaitForSingleObject(cfg->evt_update_dc, 1000);
 		ResetEvent(cfg->evt_update_dc);
 	}
+	//DeleteDC(aux_dc);
 
 	return 0;
 }

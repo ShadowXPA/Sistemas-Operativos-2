@@ -84,6 +84,8 @@ IDB_AIRPORT             BITMAP                  "..\\..\\airport.bmp"
 
 IDB_AIRPLANE            BITMAP                  "..\\..\\airplane.bmp"
 
+IDB_ARROWS              BITMAP                  "..\\..\\arrows.bmp"
+
 #endif    // English (United States) resources
 /////////////////////////////////////////////////////////////////////////////
 

@@ -39,6 +39,7 @@
 #define WINDOW_BTN4_START_Y WINDOW_MAP_START_Y
 
 #define BMP_SIZE 9
+#define BMP_ARROW_SIZE 33
 
 #define CLICK_THRESHOLD 9
 #define IGNORE_ID ((unsigned int)-1000)
@@ -113,6 +114,7 @@ typedef struct cfg {
 
 	HBITMAP bmp_airport;
 	HBITMAP bmp_airplane;
+	HBITMAP bmp_arrows;
 	HDC double_dc;
 
 	Slice *slices;

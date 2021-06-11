@@ -48,5 +48,8 @@
     <Image Include="..\..\airplane.bmp">
       <Filter>Resource Files</Filter>
     </Image>
+    <Image Include="..\..\arrows.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
 </Project>

@@ -32,6 +32,7 @@
   <ItemGroup>
     <Image Include="..\..\airplane.bmp" />
     <Image Include="..\..\airport.bmp" />
+    <Image Include="..\..\arrows.bmp" />
     <Image Include="..\..\Icon.ico" />
     <Image Include="..\..\Icon.png" />
   </ItemGroup>
