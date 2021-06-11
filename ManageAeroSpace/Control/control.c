@@ -1644,7 +1644,7 @@ DWORD WINAPI update_double_dc(void *param) {
 		DeleteDC(aux_dc);
 		BitBlt(cfg->triple_dc, 0, 0, cfg->max_window_size.x, cfg->max_window_size.y, cfg->double_dc, 0, 0, SRCCOPY);
 		InvalidateRect(cfg->hWnd, NULL, TRUE);
-		WaitForSingleObject(cfg->evt_update_dc, 1000);
+		WaitForSingleObject(cfg->evt_update_dc, 500);
 		ResetEvent(cfg->evt_update_dc);
 	}
 	//DeleteDC(aux_dc);
