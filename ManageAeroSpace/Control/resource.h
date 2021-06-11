@@ -12,7 +12,6 @@
 #define IDB_AIRPORT                     119
 #define IDB_AIRPLANE                    120
 #define IDB_ARROWS                      121
-#define IDB_BITMAP1                     121
 #define IDC_EDIT1                       1003
 #define IDC_EDIT2                       1005
 #define IDC_EDIT3                       1006
