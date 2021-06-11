@@ -116,6 +116,7 @@ typedef struct cfg {
 	HBITMAP bmp_airplane;
 	HBITMAP bmp_arrows;
 	HDC double_dc;
+	HDC triple_dc;
 
 	Slice *slices;
 	int current_slice;

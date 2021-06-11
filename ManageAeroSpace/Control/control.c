@@ -153,7 +153,8 @@ void end_config2(Config *cfg) {
 	DeleteObject(cfg->bmp_airport);
 	DeleteObject(cfg->bmp_airplane);
 	DeleteObject(cfg->bmp_arrows);
-	ReleaseDC(cfg->hWnd, cfg->double_dc);
+	DeleteDC(cfg->double_dc);
+	DeleteDC(cfg->triple_dc);
 	CloseHandle(cfg->td_update_dc);
 	CloseHandle(cfg->evt_update_dc);
 	free(cfg->slices);
@@ -215,6 +216,7 @@ void init_control(Config *cfg) {
 	// init window (Win32)
 	init_windows(cfg);
 
+	WaitForSingleObject(cfg->td_update_dc, INFINITE);
 	WaitForMultipleObjects(3, thread, TRUE, INFINITE);
 
 	//CloseHandle(threadCmd);
@@ -1250,8 +1252,8 @@ LRESULT CALLBACK handle_window_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 	static Config *cfg = NULL;
 	static int height, width, max_height, max_width;
 	static RECT rect;
-	static HDC hdc, double_dc;
-	static HBITMAP double_bmp;
+	static HDC hdc, double_dc, triple_dc;
+	static HBITMAP double_bmp, triple_bmp;
 	static PAINTSTRUCT paint;
 	static int xPos = 0;
 	static int yPos = 0;
@@ -1278,6 +1280,12 @@ LRESULT CALLBACK handle_window_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 			PatBlt(double_dc, WINDOW_BTN2_START_X, WINDOW_BTN2_START_Y, WINDOW_BTN_SIZE_Y, WINDOW_BTN_SIZE_X, PATCOPY);
 			PatBlt(double_dc, WINDOW_BTN3_START_X, WINDOW_BTN3_START_Y, WINDOW_BTN_SIZE_X, WINDOW_BTN_SIZE_Y, PATCOPY);
 			PatBlt(double_dc, WINDOW_BTN4_START_X, WINDOW_BTN4_START_Y, WINDOW_BTN_SIZE_Y, WINDOW_BTN_SIZE_X, PATCOPY);
+			triple_dc = CreateCompatibleDC(hdc);
+			triple_bmp = CreateCompatibleBitmap(hdc, max_width, max_height);
+			SelectObject(triple_dc, triple_bmp);
+			SelectObject(triple_dc, GetStockObject(DKGRAY_BRUSH));
+			PatBlt(triple_dc, 0, 0, max_width, max_height, PATCOPY);
+			BitBlt(triple_dc, 0, 0, max_width, max_height, double_dc, 0, 0, SRCCOPY);
 			ReleaseDC(hWnd, hdc);
 			break;
 		}
@@ -1345,6 +1353,8 @@ LRESULT CALLBACK handle_window_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 				{
 					UINT answer = MessageBox(hWnd, _T("Do you wish to exit?"), _T("Exiting application!"), MB_YESNO | MB_TASKMODAL | MB_ICONEXCLAMATION);
 					if (answer == IDYES) {
+						DeleteObject(double_bmp);
+						DeleteObject(triple_bmp);
 						PostQuitMessage(0);
 					}
 					break;
@@ -1405,9 +1415,10 @@ LRESULT CALLBACK handle_window_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 				cfg->evt_update_dc = CreateEvent(NULL, TRUE, FALSE, NULL);
 				if (cfg->evt_update_dc == NULL)
 					PostQuitMessage(0);
+				cfg->triple_dc = triple_dc;
 			}
 			hdc = BeginPaint(hWnd, &paint);
-			BitBlt(hdc, 0, 0, width, height, double_dc, 0, 0, SRCCOPY);
+			BitBlt(hdc, 0, 0, width, height, cfg->triple_dc, 0, 0, SRCCOPY);
 			EndPaint(hWnd, &paint);
 			break;
 		}
@@ -1415,8 +1426,8 @@ LRESULT CALLBACK handle_window_event(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 		{
 			UINT answer = MessageBox(hWnd, _T("Do you wish to exit?"), _T("Exiting application!"), MB_YESNO | MB_TASKMODAL | MB_ICONEXCLAMATION);
 			if (answer == IDYES) {
-				cfg->die = TRUE;
-				WaitForSingleObject(cfg->td_update_dc, INFINITE);
+				DeleteObject(double_bmp);
+				DeleteObject(triple_bmp);
 				PostQuitMessage(0);
 			}
 			break;
@@ -1631,6 +1642,7 @@ DWORD WINAPI update_double_dc(void *param) {
 		format(buffer, MAX_NAME, "Slice ID: %d -> (x: %d, y: %d)", cfg->current_slice, p.x, p.y);
 		TextOut(cfg->double_dc, 10, 10, buffer, _tcsclen(buffer));
 		DeleteDC(aux_dc);
+		BitBlt(cfg->triple_dc, 0, 0, cfg->max_window_size.x, cfg->max_window_size.y, cfg->double_dc, 0, 0, SRCCOPY);
 		InvalidateRect(cfg->hWnd, NULL, TRUE);
 		WaitForSingleObject(cfg->evt_update_dc, 1000);
 		ResetEvent(cfg->evt_update_dc);
